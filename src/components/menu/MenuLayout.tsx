@@ -16,12 +16,9 @@ export default function MenuLayout({
   return (
     <div
       className="min-h-screen flex flex-col items-center"
-      style={{
-        background: `linear-gradient(180deg, ${primary}, #f5d876)`,
-      }}
+      style={{ background: `linear-gradient(180deg, ${primary}, #f5d876)` }}
     >
       <div className="w-full max-w-md px-4 pt-6">
-        {/* ✅ Logo */}
         {restaurant.logo_url && (
           <div className="flex justify-center mb-4">
             <Image
@@ -35,7 +32,6 @@ export default function MenuLayout({
           </div>
         )}
 
-        {/* ✅ Ask AI Button */}
         <div className="w-full flex justify-center mb-8">
           <button
             className="w-[85%] h-12 rounded-full flex items-center justify-end pr-6 font-bold text-lg shadow-md"
@@ -45,7 +41,6 @@ export default function MenuLayout({
           </button>
         </div>
 
-        {/* ✅ Menu content (passes restaurant down via children) */}
         <main className="space-y-10" style={{ color: textColor }}>
           {children}
         </main>

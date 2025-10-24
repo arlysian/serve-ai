@@ -6,6 +6,8 @@ export interface Restaurant {
   theme?: {
     primary_color?: string;
     secondary_color?: string;
+    text_color?: string;
+    card_color?: string;
   };
   contact?: {
     phone?: string;

@@ -1,4 +1,5 @@
 import { MenuItem as ItemType, Restaurant } from "@/types/menu";
+import Image from "next/image";
 
 export default function MenuItem({
   item,
@@ -15,9 +16,11 @@ export default function MenuItem({
       className="rounded-xl shadow-sm p-3 flex flex-col items-center"
       style={{ backgroundColor: cardColor, color: textColor }}
     >
-      <img
+      <Image
         src={item.image_url || "/placeholder.png"}
         alt={item.name}
+        width={96}
+        height={96}
         className="w-24 h-24 object-cover rounded-lg mb-2"
       />
       <p className="font-semibold text-center text-sm">{item.name}</p>
