@@ -20,16 +20,33 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+interface RestaurantTheme {
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  [key: string]: string | undefined;
+}
+
+interface RestaurantContact {
+  phone?: string;
+  email?: string;
+  address?: string;
+  website?: string;
+  [key: string]: string | undefined;
+}
+
 interface Restaurant {
   id: string;
   name: string;
   slug: string;
   description?: string;
   logo_url?: string;
-  theme?: Record<string, any>;
-  contact?: Record<string, any>;
+  theme?: RestaurantTheme;
+  contact?: RestaurantContact;
   hero_url?: string;
 }
+
 
 interface RestaurantData {
   restaurant: Restaurant;

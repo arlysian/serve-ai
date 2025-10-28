@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, PostgrestSingleResponse } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import {
   getOrCreateSession,
   loadMemory,
   saveTurn,
-  updateSummary
-} from "../../../lib/memory"; 
+  updateSummary,
+} from "../../../lib/memory";
 
 // --- 1. ENV SETUP ---
 const supabase = createClient(
@@ -18,10 +18,35 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-// --- 2. HANDLER ---
+// --- 2. TYPES ---
+interface MenuItem {
+  name: string;
+  description?: string | null;
+  price: number;
+  allergens?: string[] | null;
+  tags?: string[] | null;
+  menu_sections?: { name?: string | null };
+}
+
+interface MenuSection {
+  name: string;
+  menu_items?: MenuItem[];
+}
+
+interface Restaurant {
+  name: string;
+}
+
+// --- 3. HANDLER ---
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = (await req.json()) as {
+      restaurant_id?: string;
+      question?: string;
+      dish_id?: string;
+      session_id?: string;
+    };
+
     const { restaurant_id, question, dish_id, session_id } = body;
 
     if (!restaurant_id || !question) {
@@ -36,31 +61,31 @@ export async function POST(req: Request) {
     const { summary, recent } = await loadMemory(sid);
 
     // --- CONTEXT BUILDING ---
-    let context: any = {};
+    let context: Record<string, unknown> = {};
     let restaurant_name = "";
 
-    const { data: restaurant } = await supabase
+    const restaurantRes: PostgrestSingleResponse<Restaurant> = await supabase
       .from("restaurants")
       .select("name")
       .eq("id", restaurant_id)
       .single();
 
-    if (restaurant) restaurant_name = restaurant.name;
+    if (restaurantRes.data) restaurant_name = restaurantRes.data.name;
 
-    const compressMenu = (sections: any[]) => {
-      return sections.map((s) => ({
+    const compressMenu = (sections: MenuSection[]) =>
+      sections.map((s) => ({
         s: s.name,
-        i: s.menu_items?.map((m: any) => ({
-          n: m.name,
-          d: m.description ? m.description.slice(0, 120) : "",
-          p: m.price,
-          a: m.allergens,
-          t: m.tags,
-        })),
+        i:
+          s.menu_items?.map((m) => ({
+            n: m.name,
+            d: m.description ? m.description.slice(0, 120) : "",
+            p: m.price,
+            a: m.allergens,
+            t: m.tags,
+          })) ?? [],
       }));
-    };
 
-    const compressDish = (dish: any) => ({
+    const compressDish = (dish: MenuItem) => ({
       n: dish.name,
       d: dish.description ? dish.description.slice(0, 150) : "",
       p: dish.price,
@@ -70,9 +95,10 @@ export async function POST(req: Request) {
     });
 
     if (dish_id) {
-      const { data: dish, error } = await supabase
+      const dishRes: PostgrestSingleResponse<MenuItem> = await supabase
         .from("menu_items")
-        .select(`
+        .select(
+          `
           id,
           name,
           description,
@@ -80,16 +106,21 @@ export async function POST(req: Request) {
           allergens,
           tags,
           menu_sections(name)
-        `)
+        `
+        )
         .eq("id", dish_id)
         .single();
 
-      if (error) console.error("Dish fetch error:", error);
-      context = { restaurant: restaurant_name, dish: dish ? compressDish(dish) : null };
+      if (dishRes.error) console.error("Dish fetch error:", dishRes.error);
+      context = {
+        restaurant: restaurant_name,
+        dish: dishRes.data ? compressDish(dishRes.data) : null,
+      };
     } else {
-      const { data: sections, error } = await supabase
+      const sectionsRes: PostgrestSingleResponse<MenuSection[]> = await supabase
         .from("menu_sections")
-        .select(`
+        .select(
+          `
           name,
           menu_items (
             name,
@@ -98,11 +129,16 @@ export async function POST(req: Request) {
             allergens,
             tags
           )
-        `)
+        `
+        )
         .eq("restaurant_id", restaurant_id);
 
-      if (error) console.error("Sections fetch error:", error);
-      context = { restaurant: restaurant_name, sections: sections ? compressMenu(sections) : [] };
+      if (sectionsRes.error)
+        console.error("Sections fetch error:", sectionsRes.error);
+      context = {
+        restaurant: restaurant_name,
+        sections: sectionsRes.data ? compressMenu(sectionsRes.data) : [],
+      };
     }
 
     // --- 4. CALL OPENAI ---
@@ -121,7 +157,9 @@ Use language like "typically" or "usually" when uncertain.
 Keep answers concise (1–3 sentences). Never fabricate data. Return plain text only.
 `;
 
-    const messages: any[] = [{ role: "system", content: systemPrompt }];
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: "system", content: systemPrompt },
+    ];
 
     if (summary) {
       messages.push({
@@ -137,7 +175,7 @@ Keep answers concise (1–3 sentences). Never fabricate data. Return plain text 
 
     if (recent.length) {
       for (const m of recent) {
-        messages.push({ role: m.role, content: m.content });
+        messages.push({ role: m.role as "user" | "assistant", content: m.content });
       }
     }
 
@@ -150,7 +188,8 @@ Keep answers concise (1–3 sentences). Never fabricate data. Return plain text 
       messages,
     });
 
-    const answer = completion.choices[0].message.content?.trim() || "No answer.";
+    const answer =
+      completion.choices[0].message?.content?.trim() || "No answer.";
 
     // --- MEMORY UPDATE & LOGGING ---
     await saveTurn(sid, question, answer);
@@ -164,13 +203,17 @@ Keep answers concise (1–3 sentences). Never fabricate data. Return plain text 
       tokens: completion.usage?.total_tokens || 0,
     });
 
-    // --- RETURN RESPONSE ---
     return NextResponse.json({ answer, session_id: sid });
-
-  } catch (err: any) {
+  } catch (err) {
     console.error("Error in /api/ask:", err);
+    if (err instanceof Error) {
+      return NextResponse.json(
+        { error: "Internal Server Error", details: err.message },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
-      { error: "Internal Server Error", details: err.message },
+      { error: "Unknown server error" },
       { status: 500 }
     );
   }
