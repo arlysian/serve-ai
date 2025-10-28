@@ -1,5 +1,6 @@
 // memory.ts
 import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
 export async function getOrCreateSession(restaurant_id: string, session_id?: string) {
@@ -34,7 +35,7 @@ export async function saveTurn(session_id: string, userQ: string, assistantA: st
   ]);
 }
 
-export async function updateSummary(session_id: string, oldSummary: string, userQ: string, assistantA: string, openai: any) {
+export async function updateSummary(session_id: string, oldSummary: string, userQ: string, assistantA: string, openai: OpenAI) {
   // Ultra-cheap summarizer: keep deterministic & short; 4o-mini with low tokens.
   const prompt = `
 Update the session summary (≤ 800 chars). Keep only stable facts and explicit user preferences.
