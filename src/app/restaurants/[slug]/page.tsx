@@ -51,6 +51,10 @@ export default function RestaurantMenu() {
   const [showFullHero, setShowFullHero] = useState(true);
   const [chatClosing, setChatClosing] = useState(false);
   const [backdropVisible, setBackdropVisible] = useState(false);
+  const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
+  const [dishPosition, setDishPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const [dishClosing, setDishClosing] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
 
   // ✅ Fetch restaurant + menu data
@@ -203,6 +207,39 @@ export default function RestaurantMenu() {
     setTimeout(() => {
       setShowChat(false);
       setChatClosing(false);
+    }, 300); // Match animation duration
+  };
+
+  const handleDishClick = (dish: MenuItem, event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Account for scroll position
+    setDishPosition({
+      top: rect.top + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+      height: rect.height
+    });
+    setDishClosing(false);
+    setImageLoaded(false);
+    
+    // Preload image if it exists
+    if (dish.image_url) {
+      const img = new Image();
+      img.src = dish.image_url;
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => setImageLoaded(true); // Still show even if image fails
+    } else {
+      setImageLoaded(true); // No image, so mark as "loaded"
+    }
+    
+    setSelectedDish(dish);
+  };
+
+  const handleCloseDish = () => {
+    setDishClosing(true);
+    setTimeout(() => {
+      setSelectedDish(null);
+      setDishClosing(false);
     }, 300); // Match animation duration
   };
 
@@ -397,7 +434,11 @@ export default function RestaurantMenu() {
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{section.name}</h3>
             <div className="space-y-4">
               {section.items.map((item) => (
-                <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
+                <div 
+                  key={item.id} 
+                  className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={(e) => handleDishClick(item, e)}
+                >
                   <div className="flex gap-4">
                     <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
               {item.image_url ? (
@@ -572,6 +613,92 @@ export default function RestaurantMenu() {
             </form>
             </div>
         </div>
+      )}
+
+      {/* Dish Detail Modal - Expands from clicked position */}
+      {selectedDish && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black z-50"
+            style={{
+              opacity: dishClosing ? 0 : 0.6,
+              transition: 'opacity 0.3s ease-out'
+            }}
+            onClick={handleCloseDish}
+          ></div>
+
+          {/* Expanding Dish Card */}
+          <div 
+            className="fixed z-50 bg-white rounded-3xl shadow-2xl flex flex-col will-change-transform"
+            style={{
+              top: dishPosition.top - window.scrollY,
+              left: dishPosition.left - window.scrollX,
+              width: dishPosition.width,
+              height: dishPosition.height,
+              animation: dishClosing ? 'none' : (imageLoaded ? 'expandToCenter 0.35s cubic-bezier(0.4, 0.0, 0.2, 1) forwards' : 'none'),
+              transition: dishClosing ? 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease-out' : 'none',
+              overflow: 'hidden',
+              opacity: dishClosing ? 0 : (imageLoaded ? 1 : 0),
+              transform: dishClosing ? 'scale(0.95)' : undefined
+            }}
+          >
+            {/* Large Dish Image */}
+            <div className="relative h-64 bg-gradient-to-br from-orange-400 to-red-500 flex-shrink-0">
+              {selectedDish.image_url ? (
+                <img
+                  src={selectedDish.image_url}
+                  alt={selectedDish.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-white font-bold text-6xl">
+                    {selectedDish.name.charAt(0)}
+                  </span>
+                </div>
+              )}
+              
+              {/* Close Button */}
+              <button 
+                onClick={handleCloseDish}
+                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg"
+              >
+                <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Dish Details */}
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-3xl font-bold text-gray-900">{selectedDish.name}</h2>
+                <span className="text-2xl font-bold text-orange-500">€{selectedDish.price.toFixed(2)}</span>
+              </div>
+              
+              {selectedDish.description && (
+                <p className="text-gray-600 text-lg mb-6">{selectedDish.description}</p>
+              )}
+
+              {/* Tags and Allergens */}
+              {(selectedDish.tags || selectedDish.allergens) && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {selectedDish.tags?.map((tag, index) => (
+                    <span key={index} className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                      {tag}
+                    </span>
+                  ))}
+                  {selectedDish.allergens?.map((allergen, index) => (
+                    <span key={index} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
+                      {allergen}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
     </div>
