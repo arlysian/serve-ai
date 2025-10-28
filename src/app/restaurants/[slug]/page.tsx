@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -45,6 +45,9 @@ export default function RestaurantMenu() {
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
+  const [floatingInputMessage, setFloatingInputMessage] = useState("");
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const floatingInputRef = useRef<HTMLInputElement>(null);
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
@@ -169,10 +172,10 @@ export default function RestaurantMenu() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
+    const userMessage = chatInputRef.current?.value || "";
+    if (!userMessage.trim()) return;
 
-    const userMessage = chatMessage;
-    setChatMessage("");
+    if (chatInputRef.current) chatInputRef.current.value = "";
     setChatLoading(true);
 
     // Add user message to history
@@ -195,10 +198,38 @@ export default function RestaurantMenu() {
 
   const handleSendButtonClick = () => {
     console.log('Send button clicked, opening chat');
+    
+    // Get text from floating input
+    const floatingMessage = floatingInputRef.current?.value || "";
+    
+    // Open chat
     setChatClosing(false);
     setShowChat(true);
-    // Trigger backdrop fade-in after a tiny delay to allow transition
     setTimeout(() => setBackdropVisible(true), 10);
+    
+    // If there's a message, send it
+    if (floatingMessage.trim()) {
+      // Clear floating input
+      if (floatingInputRef.current) floatingInputRef.current.value = "";
+      
+      // Add to chat history
+      setChatLoading(true);
+      setChatHistory(prev => [...prev, { role: 'user', content: floatingMessage }]);
+      
+      // Mock AI response
+      setTimeout(() => {
+        const responses = [
+          "That's a great choice! The Carbonara is one of our most popular dishes.",
+          "I'd recommend the Bruschetta as a starter - it's made with fresh tomatoes from our local supplier.",
+          "The Margherita pizza is perfect if you're looking for something vegetarian.",
+          "All our pasta dishes are made fresh daily with authentic Italian ingredients."
+        ];
+        const response = responses[Math.floor(Math.random() * responses.length)];
+        
+        setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
+        setChatLoading(false);
+      }, 1500);
+    }
   };
 
   const handleCloseChat = () => {
@@ -491,10 +522,9 @@ export default function RestaurantMenu() {
         }}>
           {/* Input Field */}
           <input
+            ref={floatingInputRef}
             type="text"
             placeholder="Ask anything"
-            value={chatMessage}
-            onChange={(e) => setChatMessage(e.target.value)}
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-400 pl-4"
           />
           
@@ -569,7 +599,7 @@ export default function RestaurantMenu() {
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] p-3 rounded-2xl ${
                     message.role === 'user' 
-                      ? 'bg-orange-500 text-white' 
+                      ? 'bg-black text-white' 
                       : 'bg-gray-100 text-gray-900'
                   }`}>
                     {message.content}
@@ -594,19 +624,18 @@ export default function RestaurantMenu() {
             <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
               <div className="flex gap-2">
                 <input
+                  ref={chatInputRef}
                   type="text"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Ask about the menu..."
-                  className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:ring-2 focus:ring-orange-500 focus:bg-white"
+                  className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:outline-none focus:bg-white"
                 />
                 <button
                   type="submit"
-                  disabled={!chatMessage.trim() || chatLoading}
-                  className="px-4 py-3 bg-orange-400 text-white rounded-2xl disabled:opacity-50"
+                  disabled={chatLoading}
+                  className="flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 rounded-full disabled:opacity-50 disabled:hover:bg-black flex-shrink-0 shadow-sm transition-all duration-200"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h12m0 0l-6-6m6 6l-6 6" />
                   </svg>
                 </button>
               </div>
