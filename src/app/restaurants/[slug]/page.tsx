@@ -20,14 +20,21 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+interface Restaurant {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo_url?: string;
+  theme?: Record<string, any>;
+  contact?: Record<string, any>;
+}
+
 interface RestaurantData {
-  restaurant: {
-    name: string;
-    description?: string;
-    image_url?: string;
-  };
+  restaurant: Restaurant;
   sections: MenuSection[];
 }
+
 
 export default function RestaurantMenu() {
   const { slug } = useParams();
@@ -39,74 +46,90 @@ export default function RestaurantMenu() {
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [isManualScrolling, setIsManualScrolling] = useState(false);
 
+
+  // ✅ Fetch restaurant + menu data
   useEffect(() => {
-    if (slug) {
-      // Mock data for now - replace with actual API call
-      const mockData: RestaurantData = {
-        restaurant: {
-          name: "Bella Vista",
-          description: "Authentic Italian cuisine with fresh ingredients",
-          image_url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=400&fit=crop"
-        },
-        sections: [
-          {
-            id: "1",
-            name: "Appetizers",
-            items: [
-              {
-                id: "1",
-                name: "Bruschetta",
-                description: "Toasted bread with tomatoes, garlic, and basil",
-                price: 8.50,
-                image_url: "https://images.unsplash.com/photo-1572441713132-51c75654db73?w=200&h=200&fit=crop",
-                allergens: ["gluten"],
-                tags: ["vegetarian"]
-              },
-              {
-                id: "2", 
-                name: "Antipasto Platter",
-                description: "Selection of cured meats, cheeses, and olives",
-                price: 16.00,
-                image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?w=200&h=200&fit=crop",
-                allergens: ["dairy"],
-                tags: ["meat"]
-              }
-            ]
-          },
-          {
-            id: "2",
-            name: "Main Courses",
-            items: [
-              {
-                id: "3",
-                name: "Spaghetti Carbonara",
-                description: "Classic Roman pasta with eggs, cheese, and pancetta",
-                price: 18.50,
-                image_url: "https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=200&h=200&fit=crop",
-                allergens: ["gluten", "dairy", "eggs"],
-                tags: ["pasta"]
-              },
-              {
-                id: "4",
-                name: "Margherita Pizza",
-                description: "Fresh mozzarella, tomato sauce, and basil",
-                price: 14.00,
-                image_url: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=200&h=200&fit=crop",
-                allergens: ["gluten", "dairy"],
-                tags: ["vegetarian", "pizza"]
-              }
-            ]
-          }
-        ]
-      };
-      
-      setTimeout(() => {
-        setData(mockData);
+    if (!slug) return;
+    if (typeof window === "undefined") return; // prevent SSR errors
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/menu/${slug}`);
+        if (!res.ok) {
+          console.error("Failed to fetch menu data");
+          setData(null);
+          return;
+        }
+
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error("Error fetching menu:", err);
+        setData(null);
+      } finally {
         setLoading(false);
-      }, 1000); 
-    }
+      }
+    };
+
+    fetchData();
   }, [slug]);
+
+  // 🧭 Highlight active section precisely when its title hits the top (auto offset)
+  useEffect(() => {
+    if (!data?.sections?.length) return;
+  
+    const sectionEls = data.sections
+      .map((s) => document.getElementById(`section-${s.id}`))
+      .filter(Boolean) as HTMLElement[];
+  
+    if (!sectionEls.length) return;
+  
+    const heroEl = document.querySelector(".restaurant-hero") as HTMLElement | null;
+    const navEl = document.querySelector(".section-nav") as HTMLElement | null;
+  
+    const getOffset = () => {
+      const heroHeight = heroEl?.offsetHeight || 0;
+      const navHeight = navEl?.offsetHeight || 0;
+      return heroHeight + navHeight;
+    };
+  
+    const computeActive = () => {
+      if (isManualScrolling) return;
+    
+      const OFFSET = getOffset();
+      let activeId = data.sections[0].id;
+    
+      for (let i = 0; i < sectionEls.length; i++) {
+        const el = sectionEls[i];
+        const rect = el.getBoundingClientRect();
+      
+        // The section becomes active when its top is above the top offset
+        if (rect.top - OFFSET <= 5) {
+          activeId = data.sections[i].id;
+        }
+      }
+    
+      // If at bottom of page, highlight the last section
+      const atBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 50;
+      if (atBottom) activeId = data.sections[data.sections.length - 1].id;
+    
+      setSelectedSection((prev) => (prev !== activeId ? activeId : prev));
+    };
+  
+    const onScroll = () => window.requestAnimationFrame(computeActive);
+  
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    computeActive();
+  
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [data, isManualScrolling]);
+
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,78 +202,103 @@ export default function RestaurantMenu() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Restaurant Hero */}
-      <div className="relative h-56 bg-gradient-to-br from-orange-400 to-red-500 sticky top-0 z-10 will-change-transform">
-        {data.restaurant.image_url && (
-          <img
-            src={data.restaurant.image_url}
-            alt={data.restaurant.name}
-            className="w-full h-full object-cover"
-            onLoad={() => console.log('Image loaded successfully')}
-            onError={(e) => {
-              console.log('Image failed to load:', data.restaurant.image_url);
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+    {/* Restaurant Hero */}
+    <div className="restaurant-hero sticky top-0 z-50 h-44 md:h-52 bg-gradient-to-br from-orange-400 to-red-500 shadow-lg relative overflow-hidden">
+      {data.restaurant.image_url && (
+        <img
+          src={data.restaurant.image_url}
+          alt={data.restaurant.name}
+          className="absolute inset-0 w-full h-full object-cover opacity-70"
+        />
+      )}
+
+      {/* Gradient overlay for contrast */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+
+      {/* ✅ Centered content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+        {data.restaurant.logo_url && (
+          <div className="w-24 h-24 md:w-28 md:h-28 mb-3 flex items-center justify-center rounded-full bg-white/15 backdrop-blur-sm shadow-lg border border-white/30 overflow-hidden p-2">
+            <img
+              src={data.restaurant.logo_url}
+              alt={`${data.restaurant.name} logo`}
+              className="w-full h-full object-contain scale-90"
+            />
+          </div>
         )}
-        <div className="absolute bottom-0 left-0 right-0 h-1/3 overflow-hidden">
-          <div 
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.1) 80%, transparent 100%)',
-              backdropFilter: 'blur(12px)',
-              filter: 'blur(0px)',
-              maskImage: 'linear-gradient(to top, black 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0.3) 80%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to top, black 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0.3) 80%, transparent 100%)'
-            }}
-          ></div>
-        </div>
-        <div className="absolute bottom-4 left-4 text-white">
-          <h2 className="text-2xl font-bold drop-shadow-lg">{data.restaurant.name}</h2>
-          {data.restaurant.description && (
-            <p className="text-sm drop-shadow-lg">{data.restaurant.description}</p>
-          )}
-        </div>
+
+
+        <h2 className="text-2xl md:text-3xl font-bold drop-shadow-lg leading-tight">
+          {data.restaurant.name}
+        </h2>
+
+        {data.restaurant.description && (
+          <p className="text-sm md:text-base drop-shadow mt-1 max-w-[90%] text-white/90">
+            {data.restaurant.description}
+          </p>
+        )}
       </div>
 
-      {/* Section Navigation */}
-      <div className="bg-white border-b">
-        <div className="px-4 py-3">
-          <div className="flex gap-2 overflow-x-auto">
-            {data.sections.map((section) => (
-                    <button
-                      key={section.id}
-                      onClick={() => setSelectedSection(selectedSection === section.id ? null : section.id)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                        selectedSection === section.id
-                          ? 'bg-orange-400 text-white'
-                          : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                      }`}
-                    >
-                {section.name}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* bottom fade into page */}
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-b from-transparent to-white"></div>
+    </div>
+
+
+    {/* Section Navigation */}
+    <div className="section-nav bg-white border-b sticky top-[160px] md:top-[192px] z-40 overflow-x-auto scrollbar-hide shadow-sm">
+      <div className="flex gap-3 px-4 py-2">
+        {data.sections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => {
+              setSelectedSection(section.id);
+              setIsManualScrolling(true);
+
+              const target = document.getElementById(`section-${section.id}`);
+              const heroEl = document.querySelector(".restaurant-hero") as HTMLElement | null;
+              const navEl = document.querySelector(".section-nav") as HTMLElement | null;
+              const heroHeight = heroEl?.offsetHeight || 0;
+              const navHeight = navEl?.offsetHeight || 0;
+              const OFFSET = heroHeight + navHeight + 5;
+
+              if (target) {
+                const top = target.getBoundingClientRect().top + window.scrollY - OFFSET;
+                window.scrollTo({ top, behavior: "smooth" });
+              }
+
+              setTimeout(() => setIsManualScrolling(false), 800);
+            }}
+
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all
+              ${
+                selectedSection === section.id
+                  ? "bg-orange-500 text-white shadow-[0_0_12px_rgba(255,128,0,0.5)] scale-105 transition-all duration-300"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-300"
+              }`}
+          >
+            {section.name}
+          </button>
+        ))}
       </div>
+    </div>
 
       {/* Menu Items */}
       <div className="px-4 py-4 pb-24">
         {data.sections.map((section) => (
-          <div key={section.id} className="mb-8">
+          <div key={section.id} id={`section-${section.id}`} className="mb-8 scroll-mt-32">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{section.name}</h3>
             <div className="space-y-4">
               {section.items.map((item) => (
                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex gap-4">
                     <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-              {item.image_url ? (
-                <img
-                  src={item.image_url}
-                  alt={item.name}
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
                           className="w-full h-full object-cover"
-                />
-              ) : (
+                        />
+                      ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
                           <span className="text-white font-bold text-lg">
                             {item.name.charAt(0)}
@@ -258,26 +306,20 @@ export default function RestaurantMenu() {
                         </div>
                       )}
                     </div>
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
-                        <span className="font-bold text-lg text-gray-900">€{item.price.toFixed(2)}</span>
+                        <h4 className="font-semibold text-gray-900 text-lg">
+                          {item.name}
+                        </h4>
+                        <span className="font-bold text-lg text-gray-900">
+                          €{item.price.toFixed(2)}
+                        </span>
                       </div>
+                    
                       {item.description && (
                         <p className="text-gray-600 text-sm mb-2">{item.description}</p>
                       )}
-                      <div className="flex flex-wrap gap-2">
-                        {item.tags?.map((tag, index) => (
-                          <span key={index} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                        {item.allergens?.map((allergen, index) => (
-                          <span key={index} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
-                            {allergen}
-                          </span>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </div>
