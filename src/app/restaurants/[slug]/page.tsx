@@ -28,6 +28,7 @@ interface Restaurant {
   logo_url?: string;
   theme?: Record<string, any>;
   contact?: Record<string, any>;
+  hero_url?: string;
 }
 
 interface RestaurantData {
@@ -47,6 +48,9 @@ export default function RestaurantMenu() {
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
+  const [showFullHero, setShowFullHero] = useState(true);
+  const [chatClosing, setChatClosing] = useState(false);
+  const [backdropVisible, setBackdropVisible] = useState(false);
 
 
   // ✅ Fetch restaurant + menu data
@@ -75,6 +79,17 @@ export default function RestaurantMenu() {
 
     fetchData();
   }, [slug]);
+
+  // Handle hero transition on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollThreshold = window.innerHeight * 0.8; // Transition point
+      setShowFullHero(window.scrollY < scrollThreshold);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // 🧭 Highlight active section precisely when its title hits the top (auto offset)
   useEffect(() => {
@@ -115,7 +130,24 @@ export default function RestaurantMenu() {
       const atBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 50;
       if (atBottom) activeId = data.sections[data.sections.length - 1].id;
     
-      setSelectedSection((prev) => (prev !== activeId ? activeId : prev));
+      setSelectedSection((prev) => {
+        if (prev !== activeId) {
+          // Auto-scroll the nav bar to center the active button
+          setTimeout(() => {
+            const activeButton = document.querySelector(`button[data-section-id="${activeId}"]`) as HTMLElement;
+            const navContainer = document.querySelector(".section-nav-scroll") as HTMLElement;
+            if (activeButton && navContainer) {
+              const buttonLeft = activeButton.offsetLeft;
+              const buttonWidth = activeButton.offsetWidth;
+              const containerWidth = navContainer.offsetWidth;
+              const scrollTo = buttonLeft - (containerWidth / 2) + (buttonWidth / 2);
+              navContainer.scrollTo({ left: scrollTo, behavior: "smooth" });
+            }
+          }, 100);
+          return activeId;
+        }
+        return prev;
+      });
     };
   
     const onScroll = () => window.requestAnimationFrame(computeActive);
@@ -159,7 +191,19 @@ export default function RestaurantMenu() {
 
   const handleSendButtonClick = () => {
     console.log('Send button clicked, opening chat');
+    setChatClosing(false);
     setShowChat(true);
+    // Trigger backdrop fade-in after a tiny delay to allow transition
+    setTimeout(() => setBackdropVisible(true), 10);
+  };
+
+  const handleCloseChat = () => {
+    setChatClosing(true);
+    setBackdropVisible(false);
+    setTimeout(() => {
+      setShowChat(false);
+      setChatClosing(false);
+    }, 300); // Match animation duration
   };
 
 
@@ -202,23 +246,46 @@ export default function RestaurantMenu() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-    {/* Restaurant Hero */}
-    <div className="restaurant-hero sticky top-0 z-50 h-44 md:h-52 bg-gradient-to-br from-orange-400 to-red-500 shadow-lg relative overflow-hidden">
-      {data.restaurant.image_url && (
-        <img
-          src={data.restaurant.image_url}
-          alt={data.restaurant.name}
-          className="absolute inset-0 w-full h-full object-cover opacity-70"
-        />
-      )}
+    {/* Full-Screen Hero Landing - Scrolls naturally */}
+    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}>
+      
+      {/* Centered content */}
+      <div className="relative z-10 flex flex-col items-center justify-center text-center text-white px-4">
+        {data.restaurant.logo_url && (
+          <div className="w-32 h-32 md:w-40 md:h-40 mb-6 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm overflow-hidden p-4">
+            <img
+              src={data.restaurant.logo_url}
+              alt={`${data.restaurant.name} logo`}
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
+        
+        <h1 className="text-4xl md:text-5xl font-bold drop-shadow-2xl leading-tight mb-4">
+          {data.restaurant.name}
+        </h1>
+        
+        {data.restaurant.description && (
+          <p className="text-lg md:text-xl drop-shadow-lg max-w-[90%] text-white/90 mb-8">
+            {data.restaurant.description}
+          </p>
+        )}
+        
+        {/* Scroll indicator */}
+        <div className="mt-8 animate-bounce">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+      </div>
+    </div>
 
-      {/* Gradient overlay for contrast */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-
+    {/* Restaurant Hero (Sticky) - Appears after scrolling */}
+    <div className="restaurant-hero sticky top-0 z-50 h-44 md:h-52 shadow-lg relative overflow-hidden" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}>
       {/* ✅ Centered content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
         {data.restaurant.logo_url && (
-          <div className="w-24 h-24 md:w-28 md:h-28 mb-3 flex items-center justify-center rounded-full bg-white/15 backdrop-blur-sm shadow-lg border border-white/30 overflow-hidden p-2">
+          <div className="w-24 h-24 md:w-28 md:h-28 mb-3 flex items-center justify-center rounded-full overflow-hidden p-2">
             <img
               src={data.restaurant.logo_url}
               alt={`${data.restaurant.name} logo`}
@@ -238,18 +305,23 @@ export default function RestaurantMenu() {
           </p>
         )}
       </div>
-
-      {/* bottom fade into page */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-b from-transparent to-white"></div>
     </div>
 
 
     {/* Section Navigation */}
-    <div className="section-nav bg-white border-b sticky top-[160px] md:top-[192px] z-40 overflow-x-auto scrollbar-hide shadow-sm">
-      <div className="flex gap-3 px-4 py-2">
+    <div className="section-nav sticky top-[176px] md:top-[208px] z-40 will-change-transform">
+      <div className="section-nav-scroll flex gap-3 px-4 py-2 overflow-x-auto scrollbar-hide" style={{ 
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden'
+      }}>
         {data.sections.map((section) => (
           <button
             key={section.id}
+            data-section-id={section.id}
             onClick={() => {
               setSelectedSection(section.id);
               setIsManualScrolling(true);
@@ -266,13 +338,24 @@ export default function RestaurantMenu() {
                 window.scrollTo({ top, behavior: "smooth" });
               }
 
+              // Auto-scroll the nav bar to center the clicked button
+              const navContainer = document.querySelector(".section-nav-scroll") as HTMLElement;
+              const button = document.querySelector(`button[data-section-id="${section.id}"]`) as HTMLElement;
+              if (button && navContainer) {
+                const buttonLeft = button.offsetLeft;
+                const buttonWidth = button.offsetWidth;
+                const containerWidth = navContainer.offsetWidth;
+                const scrollTo = buttonLeft - (containerWidth / 2) + (buttonWidth / 2);
+                navContainer.scrollTo({ left: scrollTo, behavior: "smooth" });
+              }
+
               setTimeout(() => setIsManualScrolling(false), 800);
             }}
 
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all
               ${
                 selectedSection === section.id
-                  ? "bg-orange-500 text-white shadow-[0_0_12px_rgba(255,128,0,0.5)] scale-105 transition-all duration-300"
+                  ? "bg-orange-300 text-white shadow-[0_0_12px_rgba(255,200,150,0.5)] scale-105 transition-all duration-300"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all duration-300"
               }`}
           >
@@ -292,13 +375,13 @@ export default function RestaurantMenu() {
                 <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm">
                   <div className="flex gap-4">
                     <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
+              {item.image_url ? (
+                <img
+                  src={item.image_url}
+                  alt={item.name}
                           className="w-full h-full object-cover"
-                        />
-                      ) : (
+                />
+              ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
                           <span className="text-white font-bold text-lg">
                             {item.name.charAt(0)}
@@ -330,8 +413,16 @@ export default function RestaurantMenu() {
       </div>
 
       {/* Floating Input Bar */}
-      <div className="fixed bottom-4 left-4 right-4 z-50">
-        <div className="bg-white shadow-lg border border-gray-200 px-4 py-3 flex items-center gap-3" style={{ borderRadius: '24px' }}>
+      <div className="fixed bottom-4 left-4 right-4 z-50 will-change-transform">
+        <div className="shadow-2xl border border-white/60 px-4 py-3 flex items-center gap-3" style={{ 
+          borderRadius: '28px', 
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)', 
+          transform: 'translateZ(0)', 
+          backfaceVisibility: 'hidden',
+          background: 'rgba(255, 255, 255, 0.7)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+        }}>
           {/* Input Field */}
           <input
             type="text"
@@ -342,7 +433,7 @@ export default function RestaurantMenu() {
           />
           
           {/* Microphone Icon */}
-          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <button className="p-2 hover:bg-white/50 rounded-full transition-colors">
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
@@ -351,7 +442,7 @@ export default function RestaurantMenu() {
           {/* Voice/Send Button */}
           <button 
             onClick={handleSendButtonClick}
-            className="p-2 bg-orange-400 hover:bg-orange-500 rounded-full transition-colors"
+            className="p-2 bg-orange-400 hover:bg-orange-500 rounded-full transition-colors shadow-lg"
           >
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -363,12 +454,34 @@ export default function RestaurantMenu() {
       {/* Chat Overlay */}
       {showChat && (
         <div className="fixed inset-0 z-50 flex items-end">
-          <div className="bg-white w-full h-[40vh] rounded-t-3xl flex flex-col animate-slide-up shadow-2xl">
+          {/* Backdrop shading */}
+          <div 
+            className="absolute inset-0 bg-black"
+            style={{
+              opacity: backdropVisible ? 0.6 : 0,
+              transition: 'opacity 0.3s ease-out'
+            }}
+            onClick={handleCloseChat}
+          ></div>
+          
+          {/* Chat Panel */}
+          <div 
+            className="w-full h-[60vh] rounded-t-3xl flex flex-col shadow-2xl relative z-10"
+            style={{
+              animation: chatClosing ? 'none' : 'slideUp 0.3s ease-out',
+              transform: chatClosing ? 'translateY(100%)' : 'translateY(0)',
+              transition: chatClosing ? 'transform 0.3s ease-out' : 'none',
+              background: 'rgba(255, 255, 255, 0.85)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+            }}
+          >
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">AI Menu Assistant</h3>
               <button 
-                onClick={() => setShowChat(false)}
+                onClick={handleCloseChat}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

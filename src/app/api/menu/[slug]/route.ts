@@ -67,6 +67,7 @@ export async function GET(
           slug: restaurant.slug,
           description: restaurant.description,
           logo_url: restaurant.logo_url,
+          hero_url: restaurant.hero_url,
         },
         sections: menu,
       },
