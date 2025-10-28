@@ -247,7 +247,32 @@ export default function RestaurantMenu() {
   return (
     <div className="min-h-screen bg-gray-50">
     {/* Full-Screen Hero Landing - Scrolls naturally */}
-    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}>
+    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          objectPosition: 'center center'
+        }}
+        onLoadStart={() => console.log('Video loading started...')}
+        onLoadedData={() => console.log('Video loaded and ready to play!')}
+        onError={(e) => {
+          console.error('Video failed to load');
+          e.currentTarget.style.display = 'none';
+        }}
+      >
+        <source src="/2025-10-24 18-36-03.mp4" type="video/mp4" />
+      </video>
+      
+      {/* Fallback gradient if video fails */}
+      <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}></div>
+      
+      {/* Dark overlay for better text visibility on video */}
+      <div className="absolute inset-0 bg-black/40"></div>
       
       {/* Centered content */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center text-white px-4">
@@ -439,13 +464,13 @@ export default function RestaurantMenu() {
             </svg>
           </button>
           
-          {/* Voice/Send Button */}
+          {/* Send Button */}
           <button 
             onClick={handleSendButtonClick}
-            className="p-2 bg-orange-400 hover:bg-orange-500 rounded-full transition-colors shadow-lg"
+            className="flex items-center justify-center w-10 h-10 bg-black hover:bg-gray-800 rounded-full transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0"
           >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h12m0 0l-6-6m6 6l-6 6" />
             </svg>
           </button>
         </div>
