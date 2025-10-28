@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  // Redirect directly to Bella Vista restaurant
-  redirect("/restaurants/bella-vista");
+  redirect("/restaurants/ristorante-pizzeria-karalis");
 }
