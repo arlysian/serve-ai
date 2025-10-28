@@ -213,26 +213,26 @@ export default function RestaurantMenu() {
         </div>
       </div>
 
-      {/* Section Navigation */}
-      <div className="bg-white border-b">
-        <div className="px-4 py-3">
-          <div className="flex gap-2 overflow-x-auto">
-            {data.sections.map((section) => (
-                    <button
-                      key={section.id}
-                      onClick={() => setSelectedSection(selectedSection === section.id ? null : section.id)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                        selectedSection === section.id
-                          ? 'bg-orange-400 text-white'
-                          : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                      }`}
-                    >
-                {section.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+       {/* Section Navigation */}
+       <div className="bg-white border-b sticky top-56 z-10 will-change-transform">
+         <div className="px-4 py-3">
+           <div className="flex gap-2 overflow-x-auto">
+             {data.sections.map((section) => (
+                     <button
+                       key={section.id}
+                       onClick={() => setSelectedSection(selectedSection === section.id ? null : section.id)}
+                       className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                         selectedSection === section.id
+                           ? 'bg-orange-400 text-white'
+                           : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                       }`}
+                     >
+                 {section.name}
+               </button>
+             ))}
+           </div>
+         </div>
+       </div>
 
       {/* Menu Items */}
       <div className="px-4 py-4 pb-24">
@@ -258,27 +258,15 @@ export default function RestaurantMenu() {
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
-                        <span className="font-bold text-lg text-gray-900">€{item.price.toFixed(2)}</span>
-                      </div>
-                      {item.description && (
-                        <p className="text-gray-600 text-sm mb-2">{item.description}</p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        {item.tags?.map((tag, index) => (
-                          <span key={index} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                        {item.allergens?.map((allergen, index) => (
-                          <span key={index} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">
-                            {allergen}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                     <div className="flex-1 min-w-0">
+                       <div className="flex justify-between items-start mb-2">
+                         <h4 className="font-semibold text-gray-900 text-lg">{item.name}</h4>
+                         <span className="font-bold text-lg text-gray-900">€{item.price.toFixed(2)}</span>
+                       </div>
+                       {item.description && (
+                         <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                       )}
+                     </div>
                   </div>
                 </div>
               ))}
