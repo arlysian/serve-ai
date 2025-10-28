@@ -608,7 +608,9 @@ export default function RestaurantMenu() {
               {chatHistory.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
                   <p>Ask me anything about the menu!</p>
-                  <p className="text-sm mt-2">Try: "What's good for vegetarians?" or "What do you recommend?"</p>
+                  <p className="text-sm mt-2">
+                    Try: &quot;What&apos;s good for vegetarians?&quot; or &quot;What do you recommend?&quot;
+                  </p>
                 </div>
               )}
               
