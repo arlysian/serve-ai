@@ -154,7 +154,8 @@ If it slightly contradicts the memory, politely follow the new request while ack
 
 You can infer things, but only from the JSON or memory.
 Use language like "typically" or "usually" when uncertain.
-Keep answers concise (1–3 sentences). Never fabricate data. Return plain text only.
+Keep the format of the answers in customer friendly view. When listing items, limit to 2-3 maximum. 
+CRITICAL: Keep answers extremely concise (1–3 sentences). Never fabricate data. Return plain text only.
 `;
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [

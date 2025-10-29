@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 
 interface MenuItem {
   id: string;
@@ -65,6 +66,7 @@ export default function RestaurantMenu() {
   const [floatingInputMessage, setFloatingInputMessage] = useState("");
   const chatInputRef = useRef<HTMLInputElement>(null);
   const floatingInputRef = useRef<HTMLInputElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
@@ -115,6 +117,16 @@ export default function RestaurantMenu() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTo({
+        top: chatMessagesRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [chatHistory, chatLoading]);
 
   // 🧭 Highlight active section precisely when its title hits the top (auto offset)
   useEffect(() => {
@@ -598,7 +610,7 @@ export default function RestaurantMenu() {
             </div>
             
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-4 space-y-4">
               {chatHistory.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
                   <p>Ask me anything about the menu!</p>
@@ -612,10 +624,21 @@ export default function RestaurantMenu() {
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] p-3 rounded-2xl ${
                     message.role === 'user' 
-                      ? 'bg-black text-white' 
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-black text-white [&_*]:text-white' 
+                      : 'bg-gray-100 text-gray-900 [&_*]:text-gray-900'
                   }`}>
-                    {message.content}
+                    <ReactMarkdown
+                      components={{
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                        em: ({node, ...props}) => <em className="italic" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
+                        li: ({node, ...props}) => <li className="ml-0" {...props} />,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ))}
