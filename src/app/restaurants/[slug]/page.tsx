@@ -67,6 +67,7 @@ export default function RestaurantMenu() {
   const chatInputRef = useRef<HTMLInputElement>(null);
   const floatingInputRef = useRef<HTMLInputElement>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
+  const aiPicksRef = useRef<HTMLDivElement>(null);
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
@@ -78,6 +79,7 @@ export default function RestaurantMenu() {
   const [dishPosition, setDishPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const [dishClosing, setDishClosing] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [highlightedDishes, setHighlightedDishes] = useState<Set<string>>(new Set());
 
 
   // ✅ Fetch restaurant + menu data
@@ -218,7 +220,40 @@ export default function RestaurantMenu() {
       if (!res.ok) throw new Error(json.error || "Chat request failed");
 
       setSessionId(json.session_id);
-      setChatHistory(prev => [...prev, { role: "assistant", content: json.answer || "No response." }]);
+      const aiResponse = json.answer || "No response.";
+      setChatHistory(prev => [...prev, { role: "assistant", content: aiResponse }]);
+      
+      // Parse AI response to find mentioned dishes
+      if (data?.sections) {
+        const mentionedDishIds = new Set<string>();
+        data.sections.forEach(section => {
+          section.items.forEach(item => {
+            // Check if dish name appears in AI response (case-insensitive)
+            if (aiResponse.toLowerCase().includes(item.name.toLowerCase())) {
+              mentionedDishIds.add(item.id);
+            }
+          });
+        });
+        
+        // Add newly mentioned dishes to highlights
+        if (mentionedDishIds.size > 0) {
+          setHighlightedDishes(prev => new Set([...prev, ...mentionedDishIds]));
+          
+          // Auto-scroll to AI Picks section
+          setTimeout(() => {
+            if (aiPicksRef.current) {
+              const navEl = document.querySelector(".section-nav") as HTMLElement | null;
+              const navHeight = navEl?.offsetHeight || 0;
+              const targetPosition = aiPicksRef.current.offsetTop - navHeight - 20;
+              
+              window.scrollTo({
+                top: targetPosition,
+                behavior: 'smooth'
+              });
+            }
+          }, 100);
+        }
+      }
     } catch (err) {
       console.error("Chat error:", err);
       setChatHistory(prev => [
@@ -489,6 +524,67 @@ export default function RestaurantMenu() {
 
       {/* Menu Items */}
       <div className="px-4 py-4 pb-24">
+        {/* AI Picks Section */}
+        {highlightedDishes.size > 0 && (
+          <div ref={aiPicksRef} className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">AI Picks</h3>
+              <span className="text-2xl">✨</span>
+            </div>
+            <div className="space-y-4">
+              {(() => {
+                const allHighlightedItems = data.sections.flatMap(section => 
+                  section.items.filter(item => highlightedDishes.has(item.id))
+                );
+                // Remove duplicates by name (in case same dish appears in multiple sections)
+                const uniqueItems = Array.from(
+                  new Map(allHighlightedItems.map(item => [item.name.toLowerCase(), item])).values()
+                );
+                return uniqueItems.map((item) => (
+                  <div 
+                    key={`ai-pick-${item.id}`}
+                    className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish"
+                    onClick={(e) => handleDishClick(item, e)}
+                  >
+                    <div className="flex gap-4">
+                    <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+                          <span className="text-white font-bold text-lg">
+                            {item.name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-gray-900 text-lg">
+                          {item.name}
+                        </h4>
+                        <span className="font-bold text-lg text-gray-900">
+                          €{item.price.toFixed(2)}
+                        </span>
+                      </div>
+                    
+                      {item.description && (
+                        <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
         {data.sections.map((section) => (
           <div key={section.id} id={`section-${section.id}`} className="mb-8 scroll-mt-32">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{section.name}</h3>
@@ -496,7 +592,9 @@ export default function RestaurantMenu() {
               {section.items.map((item) => (
                 <div 
                   key={item.id} 
-                  className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                    highlightedDishes.has(item.id) ? 'ai-highlighted-dish' : ''
+                  }`}
                   onClick={(e) => handleDishClick(item, e)}
                 >
                   <div className="flex gap-4">

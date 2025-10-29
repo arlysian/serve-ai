@@ -133,6 +133,18 @@ html {
   }
 }
 
+@keyframes rotateGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
 }
@@ -156,6 +168,15 @@ html {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* AI Highlighted Dish - Rotating Gradient Border */
+.ai-highlighted-dish {
+  border: 3px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(90deg, #fbbf24, #f59e0b, #ea580c, #fbbf24, #f59e0b) border-box;
+  background-size: auto, 200% 100%;
+  animation: rotateGradient 3s linear infinite;
 }
 
 /* Touch-friendly button sizing */
