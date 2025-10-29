@@ -68,6 +68,7 @@ export default function RestaurantMenu() {
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFullHero, setShowFullHero] = useState(true);
   const [chatClosing, setChatClosing] = useState(false);
   const [backdropVisible, setBackdropVisible] = useState(false);
@@ -186,67 +187,60 @@ export default function RestaurantMenu() {
     };
   }, [data, isManualScrolling]);
 
+  const sendChatMessage = async (message: string) => {
+    if (!message.trim()) return;
+    setChatLoading(true);
+    setChatHistory(prev => [...prev, { role: "user", content: message }]);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          restaurant_id: data?.restaurant.id,
+          question: message,
+          session_id: sessionId,
+        }),
+      });
+
+      const json = await res.json();
+      console.log("Chat response:", json); // optional debug
+      if (!res.ok) throw new Error(json.error || "Chat request failed");
+
+      setSessionId(json.session_id);
+      setChatHistory(prev => [...prev, { role: "assistant", content: json.answer || "No response." }]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      setChatHistory(prev => [
+        ...prev,
+        { role: "assistant", content: "Sorry, something went wrong." },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const userMessage = chatInputRef.current?.value || "";
     if (!userMessage.trim()) return;
 
-    if (chatInputRef.current) chatInputRef.current.value = "";
-    setChatLoading(true);
-
-    // Add user message to history
-    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
-
-    // Mock AI response - replace with actual API call
-    setTimeout(() => {
-      const responses = [
-        "That's a great choice! The Carbonara is one of our most popular dishes.",
-        "I'd recommend the Bruschetta as a starter - it's made with fresh tomatoes from our local supplier.",
-        "The Margherita pizza is perfect if you're looking for something vegetarian.",
-        "All our pasta dishes are made fresh daily with authentic Italian ingredients."
-      ];
-      const response = responses[Math.floor(Math.random() * responses.length)];
-      
-      setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
-      setChatLoading(false);
-    }, 1500);
+    chatInputRef.current!.value = "";
+    await sendChatMessage(userMessage);
   };
 
-  const handleSendButtonClick = () => {
-    console.log('Send button clicked, opening chat');
-    
-    // Get text from floating input
+  const handleSendButtonClick = async () => {
+    console.log("Send button clicked, opening chat");
     const floatingMessage = floatingInputRef.current?.value || "";
-    
-    // Open chat
+
+    // Open chat overlay
     setChatClosing(false);
     setShowChat(true);
     setTimeout(() => setBackdropVisible(true), 10);
-    
-    // If there's a message, send it
-    if (floatingMessage.trim()) {
-      // Clear floating input
-      if (floatingInputRef.current) floatingInputRef.current.value = "";
-      
-      // Add to chat history
-      setChatLoading(true);
-      setChatHistory(prev => [...prev, { role: 'user', content: floatingMessage }]);
-      
-      // Mock AI response
-      setTimeout(() => {
-        const responses = [
-          "That's a great choice! The Carbonara is one of our most popular dishes.",
-          "I'd recommend the Bruschetta as a starter - it's made with fresh tomatoes from our local supplier.",
-          "The Margherita pizza is perfect if you're looking for something vegetarian.",
-          "All our pasta dishes are made fresh daily with authentic Italian ingredients."
-        ];
-        const response = responses[Math.floor(Math.random() * responses.length)];
-        
-        setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
-        setChatLoading(false);
-      }, 1500);
-    }
+
+    if (!floatingMessage.trim()) return;
+    floatingInputRef.current!.value = "";
+    await sendChatMessage(floatingMessage);
   };
 
   const handleCloseChat = () => {
