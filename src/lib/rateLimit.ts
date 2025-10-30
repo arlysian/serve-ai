@@ -1,69 +1,53 @@
-// Simple in-memory rate limiter
-// For production, consider Redis or a proper rate limiting service
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const sessions = new Map<string, RateLimitEntry>();
-
-// Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of sessions.entries()) {
-    if (now > value.resetAt) {
-      sessions.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
+// Initialize Redis client
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 /**
- * Check if a session/IP is within rate limits
+ * Check if a session/IP is within rate limits using Upstash Redis
  * @param identifier - session_id or IP address
  * @param limit - Maximum requests allowed per window
  * @param windowMs - Time window in milliseconds (default: 1 minute)
  * @returns true if allowed, false if rate limited
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   identifier: string,
   limit: number = 10,
   windowMs: number = 60 * 1000
-): boolean {
-  const now = Date.now();
-  const entry = sessions.get(identifier);
+): Promise<boolean> {
+  // Convert windowMs to seconds for Ratelimit
+  const windowSeconds = Math.floor(windowMs / 1000);
+  
+  // Create a custom limiter for this specific limit/window
+  const customLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
+    analytics: true,
+  });
 
-  // No entry or expired - create new
-  if (!entry || now > entry.resetAt) {
-    sessions.set(identifier, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
-    return true;
-  }
-
-  // Within window - check limit
-  if (entry.count >= limit) {
-    return false; // Rate limited
-  }
-
-  // Increment counter
-  entry.count++;
-  sessions.set(identifier, entry);
-  return true;
+  const { success } = await customLimiter.limit(identifier);
+  return success;
 }
 
 /**
  * Get remaining requests for an identifier
  */
-export function getRemainingRequests(
+export async function getRemainingRequests(
   identifier: string,
   limit: number = 10
-): number {
-  const entry = sessions.get(identifier);
-  if (!entry || Date.now() > entry.resetAt) {
-    return limit;
-  }
-  return Math.max(0, limit - entry.count);
+): Promise<number> {
+  const windowSeconds = 60; // 1 minute default
+  const customLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
+    analytics: true,
+  });
+  
+  const result = await customLimiter.limit(identifier);
+  return result.remaining;
 }
 

@@ -74,10 +74,10 @@ export async function POST(req: Request) {
                       'unknown-ip';
     
     // Session-based limit: 10 requests per minute per session
-    const sessionLimited = !checkRateLimit(`session:${sessionIdentifier}`, 10, 60 * 1000);
+    const sessionLimited = !(await checkRateLimit(`session:${sessionIdentifier}`, 10, 60 * 1000));
     
     // IP-based limit: 30 requests per minute per IP (allows max 3 concurrent sessions)
-    const ipLimited = !checkRateLimit(`ip:${ipAddress}`, 30, 60 * 1000);
+    const ipLimited = !(await checkRateLimit(`ip:${ipAddress}`, 30, 60 * 1000));
     
     if (sessionLimited || ipLimited) {
       return NextResponse.json(
