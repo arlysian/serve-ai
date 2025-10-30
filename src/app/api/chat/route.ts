@@ -7,6 +7,7 @@ import {
   saveTurn,
   updateSummary,
 } from "../../../lib/memory";
+import { checkRateLimit } from "../../../lib/rateLimit";
 
 // --- 1. ENV SETUP ---
 const supabase = createClient(
@@ -49,10 +50,47 @@ export async function POST(req: Request) {
 
     const { restaurant_id, question, dish_id, session_id } = body;
 
+    // --- VALIDATION ---
     if (!restaurant_id || !question) {
       return NextResponse.json(
         { error: "Missing restaurant_id or question" },
         { status: 400 }
+      );
+    }
+
+    // Message length validation (max 800 characters)
+    if (question.length > 800) {
+      return NextResponse.json(
+        { error: "Message too long. Maximum 800 characters allowed." },
+        { status: 400 }
+      );
+    }
+
+    // --- RATE LIMITING ---
+    // Check BOTH session and IP to prevent bypass via fake session_ids
+    const sessionIdentifier = session_id || 'no-session';
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                      req.headers.get('x-real-ip') || 
+                      'unknown-ip';
+    
+    // Session-based limit: 10 requests per minute per session
+    const sessionLimited = !checkRateLimit(`session:${sessionIdentifier}`, 10, 60 * 1000);
+    
+    // IP-based limit: 30 requests per minute per IP (allows max 3 concurrent sessions)
+    const ipLimited = !checkRateLimit(`ip:${ipAddress}`, 30, 60 * 1000);
+    
+    if (sessionLimited || ipLimited) {
+      return NextResponse.json(
+        { 
+          error: "Too many requests. Please wait a moment before trying again.",
+          retryAfter: 60 
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': '60'
+          }
+        }
       );
     }
 

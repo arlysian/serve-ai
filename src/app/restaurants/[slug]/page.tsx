@@ -210,6 +210,16 @@ export default function RestaurantMenu() {
 
   const sendChatMessage = async (message: string) => {
     if (!message.trim()) return;
+    
+    // Validate message length on client side
+    if (message.length > 800) {
+      setChatHistory(prev => [...prev, 
+        { role: "user", content: message },
+        { role: "assistant", content: "Your message is too long. Please keep it under 800 characters." }
+      ]);
+      return;
+    }
+    
     setChatLoading(true);
     setChatHistory(prev => [...prev, { role: "user", content: message }]);
 
@@ -225,6 +235,17 @@ export default function RestaurantMenu() {
       });
 
       const json = await res.json();
+      
+      // Handle rate limiting
+      if (res.status === 429) {
+        setChatHistory(prev => [...prev, { 
+          role: "assistant", 
+          content: "You're sending messages too quickly. Please wait a moment before trying again." 
+        }]);
+        setChatLoading(false);
+        return;
+      }
+      
       if (!res.ok) throw new Error(json.error || "Chat request failed");
 
       setSessionId(json.session_id);
@@ -708,6 +729,7 @@ export default function RestaurantMenu() {
             ref={floatingInputRef}
             type="text"
             placeholder="Ask anything"
+            maxLength={800}
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-400 pl-4"
           />
           
@@ -788,6 +810,8 @@ export default function RestaurantMenu() {
                       : 'bg-gray-100 text-gray-900 [&_*]:text-gray-900'
                   }`}>
                     <ReactMarkdown
+                      allowedElements={['p', 'strong', 'em', 'ul', 'ol', 'li', 'br']}
+                      unwrapDisallowed={true}
                       components={{
                         p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
                         strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
@@ -823,6 +847,7 @@ export default function RestaurantMenu() {
                   ref={chatInputRef}
                   type="text"
                   placeholder="Ask about the menu..."
+                  maxLength={800}
                   className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:outline-none focus:bg-white text-gray-800 placeholder-gray-500"
                 />
                 <button
