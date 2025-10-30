@@ -1,14 +1,15 @@
 import { supabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 
-export const revalidate = 3600; // Cache for 1 hour
+export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: Request,
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
-
+  
   try {
     // 1. Get restaurant info
     const { data: restaurant, error: restaurantError } = await supabase
@@ -16,12 +17,8 @@ export async function GET(
       .select("*")
       .eq("slug", slug)
       .single();
-
     if (restaurantError || !restaurant) {
-      return NextResponse.json(
-        { error: "Restaurant not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
 
     // 2. Get menu sections
@@ -32,10 +29,7 @@ export async function GET(
       .order("position");
 
     if (sectionsError) {
-      return NextResponse.json(
-        { error: "Failed to load menu sections" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to load menu sections" }, { status: 500 });
     }
 
     // 3. Get menu items
@@ -46,10 +40,7 @@ export async function GET(
       .in("section_id", sectionIds);
 
     if (itemsError) {
-      return NextResponse.json(
-        { error: "Failed to load menu items" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to load menu items" }, { status: 500 });
     }
 
     // 4. Attach items to sections
@@ -67,7 +58,10 @@ export async function GET(
           slug: restaurant.slug,
           description: restaurant.description,
           logo_url: restaurant.logo_url,
-          hero_url: restaurant.hero_url,
+          hero_video_url: restaurant.hero_video_url,
+          hero_socials: restaurant.hero_socials,
+          theme: restaurant.theme,
+          contact: restaurant.contact,
         },
         sections: menu,
       },
@@ -79,9 +73,6 @@ export async function GET(
     );
   } catch (err) {
     console.error("❌ Server error in /api/menu/[slug]:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

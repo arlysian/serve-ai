@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -45,8 +45,14 @@ interface Restaurant {
   logo_url?: string;
   theme?: RestaurantTheme;
   contact?: RestaurantContact;
-  hero_url?: string;
+  hero_video_url?: string;
+  hero_socials?: {
+    website?: string;
+    instagram?: string;
+    facebook?: string;
+  };
 }
+
 
 
 interface RestaurantData {
@@ -57,13 +63,11 @@ interface RestaurantData {
 
 export default function RestaurantMenu() {
   const { slug } = useParams();
-  const router = useRouter();
   const [data, setData] = useState<RestaurantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [floatingInputMessage, setFloatingInputMessage] = useState("");
   const chatInputRef = useRef<HTMLInputElement>(null);
   const floatingInputRef = useRef<HTMLInputElement>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
@@ -84,12 +88,14 @@ export default function RestaurantMenu() {
 
   // ✅ Fetch restaurant + menu data
   useEffect(() => {
-    if (!slug) return;
-    if (typeof window === "undefined") return; // prevent SSR errors
+    // Prevent SSR errors and ensure slug is ready
+    if (typeof window === "undefined") return;
 
     const fetchData = async () => {
+      if (!slug) return; // only run when slug is available
+
       try {
-        const res = await fetch(`/api/menu/${slug}`);
+        const res = await fetch(`/api/menu/${slug}`, { cache: "no-store" });
         if (!res.ok) {
           console.error("Failed to fetch menu data");
           setData(null);
@@ -106,8 +112,11 @@ export default function RestaurantMenu() {
       }
     };
 
-    fetchData();
+    // 🔁 Retry until slug is defined
+    const timeout = setTimeout(fetchData, 100);
+    return () => clearTimeout(timeout);
   }, [slug]);
+
 
   // Handle hero transition on scroll
   useEffect(() => {
@@ -216,7 +225,6 @@ export default function RestaurantMenu() {
       });
 
       const json = await res.json();
-      console.log("Chat response:", json); // optional debug
       if (!res.ok) throw new Error(json.error || "Chat request failed");
 
       setSessionId(json.session_id);
@@ -275,7 +283,6 @@ export default function RestaurantMenu() {
   };
 
   const handleSendButtonClick = async () => {
-    console.log("Send button clicked, opening chat");
     const floatingMessage = floatingInputRef.current?.value || "";
 
     // Open chat overlay
@@ -370,27 +377,26 @@ export default function RestaurantMenu() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-    {/* Full-Screen Hero Landing - Scrolls naturally */}
-    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
-      {/* Video Background */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          objectPosition: 'center center'
-        }}
-        onLoadStart={() => console.log('Video loading started...')}
-        onLoadedData={() => console.log('Video loaded and ready to play!')}
-        onError={(e) => {
-          console.error('Video failed to load');
-          e.currentTarget.style.display = 'none';
-        }}
-      >
-        <source src="/2025-10-24 18-36-03.mp4" type="video/mp4" />
-      </video>
+      {/* Full-Screen Hero Landing - Scrolls naturally */}
+      <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+        {/* Video Background */}
+        {data.restaurant.hero_video_url && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: "center center" }}
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          >
+            <source
+              src={`${data.restaurant.hero_video_url}?v=${Date.now()}`} // cache-bust if re-uploaded
+              type="video/mp4"
+            />
+          </video>
+        )}
+
       
       {/* Fallback gradient if video fails */}
       <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}></div>
@@ -421,34 +427,84 @@ export default function RestaurantMenu() {
         )}
         
         {/* Social Media Buttons */}
-        <div className="flex items-center gap-4 mb-8">
-          {/* Website Button */}
-          <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group">
-            <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-          
-          {/* Instagram Button */}
-          <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group">
-            <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-            </svg>
-          </button>
-          
-          {/* Facebook Button */}
-          <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group">
-            <svg className="w-6 h-6 text-white group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-          </button>
-        </div>
-        
-        {/* Elegant message */}
-        <div className="mt-16 mb-6">
-          <p 
-            className="text-amber-300 text-5xl md:text-7xl italic drop-shadow-2xl transform -rotate-2" 
-            style={{ 
+        {data.restaurant.hero_socials && (() => {
+          // 🛠 Ensure hero_socials is always a real object
+          const socials =
+            typeof data.restaurant.hero_socials === "string"
+              ? JSON.parse(data.restaurant.hero_socials)
+              : data.restaurant.hero_socials;
+
+          return (
+            <div className="flex items-center gap-4 mb-8">
+              {/* Website */}
+              {socials.website && (
+                <a
+                  href={socials.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group"
+                >
+                  <svg
+                    className="w-6 h-6 text-white group-hover:scale-110 transition-transform"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </a>
+              )}
+
+              {/* Instagram */}
+              {socials.instagram && (
+                <a
+                  href={socials.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group"
+                >
+                  <svg
+                    className="w-6 h-6 text-white group-hover:scale-110 transition-transform"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                </a>
+              )}
+
+              {/* Facebook */}
+              {socials.facebook && (
+                <a
+                  href={socials.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group"
+                >
+                  <svg
+                    className="w-6 h-6 text-white group-hover:scale-110 transition-transform"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>                  </svg>
+                </a>
+              )}
+            </div>
+          );
+        })()}
+
+
+
+        {/* Elegant message (Deleted but kept for reference) */}
+        {/* <div className="mt-16 mb-6">
+          <p
+            className="text-amber-300 text-5xl md:text-7xl italic drop-shadow-2xl transform -rotate-2"
+            style={{
               fontFamily: 'Brush Script MT, Lucida Handwriting, cursive',
               letterSpacing: '0.05em',
               textShadow: '0 0 30px rgba(251, 191, 36, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3)'
@@ -456,7 +512,7 @@ export default function RestaurantMenu() {
           >
             Bon Appétit
           </p>
-        </div>
+        </div> */}
         
         {/* Scroll indicator */}
         <div className="animate-bounce">
@@ -655,12 +711,12 @@ export default function RestaurantMenu() {
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-400 pl-4"
           />
           
-          {/* Microphone Icon */}
-          <button className="p-2 hover:bg-white/50 rounded-full transition-colors">
+          {/* Microphone Icon (Deleted for now. Pointless to have.) */}
+          {/* <button className="p-2 hover:bg-white/50 rounded-full transition-colors">
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-          </button>
+          </button> */}
           
           {/* Send Button */}
           <button 
@@ -767,7 +823,7 @@ export default function RestaurantMenu() {
                   ref={chatInputRef}
                   type="text"
                   placeholder="Ask about the menu..."
-                  className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:outline-none focus:bg-white"
+                  className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:outline-none focus:bg-white text-gray-800 placeholder-gray-500"
                 />
                 <button
                   type="submit"
