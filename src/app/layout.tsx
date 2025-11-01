@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Menu AI - Ask AI about any menu",
-  description: "Discover restaurants and get AI-powered menu recommendations",
+  title: "Serve AI - Ask AI about restaurant menu",
+  description: "Get AI-powered menu recommendations",
 };
 
 export const viewport = {
