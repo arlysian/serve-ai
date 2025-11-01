@@ -936,12 +936,12 @@ export default function RestaurantMenu() {
                 <div className="flex flex-wrap gap-2 mb-6">
                   {selectedDish.tags?.map((tag, index) => (
                     <span key={index} className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                      {tag}
+                      {tag.charAt(0).toUpperCase() + tag.slice(1)}
                     </span>
                   ))}
                   {selectedDish.allergens?.map((allergen, index) => (
                     <span key={index} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
-                      {allergen}
+                      {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
                     </span>
                   ))}
                 </div>
