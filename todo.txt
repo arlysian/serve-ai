@@ -1,0 +1,2 @@
+1. FIX. When using other languages in AI chat that it shows the AI picks and not just neglects it.
+2. FIX. Too zoomed in images for restaurant. Set default minimum size for image.
