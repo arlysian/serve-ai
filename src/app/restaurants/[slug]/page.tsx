@@ -894,12 +894,12 @@ export default function RestaurantMenu() {
             }}
           >
             {/* Large Dish Image */}
-            <div className="relative h-64 bg-gradient-to-br from-orange-400 to-red-500 flex-shrink-0">
+            <div className="relative w-full max-h-[40vh] bg-white flex items-center justify-center overflow-hidden">
               {selectedDish.image_url ? (
                 <img
                   src={selectedDish.image_url}
                   alt={selectedDish.name}
-                  className="w-full h-full object-cover"
+                  className="w-auto h-full max-h-[40vh] object-contain mx-auto transition-transform duration-300"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
