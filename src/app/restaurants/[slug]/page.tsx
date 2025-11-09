@@ -85,6 +85,7 @@ export default function RestaurantMenu() {
   const [dishClosing, setDishClosing] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [highlightedDishes, setHighlightedDishes] = useState<Set<string>>(new Set());
+  const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
 
 
   // ✅ Fetch restaurant + menu data
@@ -241,6 +242,45 @@ export default function RestaurantMenu() {
       window.removeEventListener("resize", onScroll);
     };
   }, [data, isManualScrolling]);
+
+  // Lazy load sections as they come into view
+  useEffect(() => {
+    if (!data?.sections?.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const sectionId = entry.target.getAttribute('data-section-id');
+          if (!sectionId) return;
+
+          if (entry.isIntersecting) {
+            setVisibleSections((prev) => new Set([...prev, sectionId]));
+          }
+        });
+      },
+      {
+        // Start loading when section is 200px away from viewport
+        rootMargin: '200px 0px',
+        threshold: 0.01,
+      }
+    );
+
+    // Observe all section containers
+    data.sections.forEach((section) => {
+      const element = document.getElementById(`section-${section.id}`);
+      if (element) {
+        observer.observe(element);
+        // Mark first section as visible immediately
+        if (section === data.sections[0]) {
+          setVisibleSections((prev) => new Set([...prev, section.id]));
+        }
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [data?.sections]);
 
   const sendChatMessage = async (message: string) => {
     if (!message.trim()) return;
@@ -665,6 +705,7 @@ export default function RestaurantMenu() {
                           src={item.image_url}
                           alt={item.name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
@@ -698,10 +739,11 @@ export default function RestaurantMenu() {
         )}
 
         {data.sections.map((section) => (
-          <div key={section.id} id={`section-${section.id}`} className="mb-8 scroll-mt-32">
+          <div key={section.id} id={`section-${section.id}`} data-section-id={section.id} className="mb-8 scroll-mt-32">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{section.name}</h3>
-            <div className="space-y-4">
-              {section.items.map((item) => (
+            {visibleSections.has(section.id) ? (
+              <div className="space-y-4">
+                {section.items.map((item) => (
                 <div 
                   key={item.id} 
                   className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
@@ -715,7 +757,8 @@ export default function RestaurantMenu() {
                 <img
                   src={item.image_url}
                   alt={item.name}
-                          className="w-full h-full object-cover"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
@@ -743,7 +786,23 @@ export default function RestaurantMenu() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            ) : (
+              // Placeholder while section is loading
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl p-4 shadow-sm animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 bg-gray-200 rounded-xl"></div>
+                      <div className="flex-1">
+                        <div className="h-5 bg-gray-200 rounded mb-2 w-3/4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
