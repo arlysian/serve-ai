@@ -72,6 +72,7 @@ export default function RestaurantMenu() {
   const floatingInputRef = useRef<HTMLInputElement>(null);
   const chatMessagesRef = useRef<HTMLDivElement>(null);
   const aiPicksRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
@@ -128,6 +129,39 @@ export default function RestaurantMenu() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Pause video when not visible for performance optimization
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Video is visible - play it
+            video.play().catch((err) => {
+              // Ignore autoplay errors (browser may block autoplay)
+              console.debug("Video play prevented:", err);
+            });
+          } else {
+            // Video is not visible - pause it to save resources
+            video.pause();
+          }
+        });
+      },
+      {
+        // Trigger when at least 10% of video is visible
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(video);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [data?.restaurant.hero_video_url]);
 
   // Auto-scroll chat to bottom when new messages arrive
   useEffect(() => {
@@ -403,6 +437,7 @@ export default function RestaurantMenu() {
         {/* Video Background */}
         {data.restaurant.hero_video_url && (
           <video
+            ref={videoRef}
             autoPlay
             loop
             muted
