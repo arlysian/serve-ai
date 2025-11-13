@@ -696,6 +696,7 @@ export default function RestaurantMenu() {
                   <div 
                     key={`ai-pick-${item.id}`}
                     className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish"
+                    style={{ transform: 'translateZ(0)' }}
                     onClick={(e) => handleDishClick(item, e)}
                   >
                     <div className="flex gap-4">
@@ -749,6 +750,7 @@ export default function RestaurantMenu() {
                   className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
                     highlightedDishes.has(item.id) ? 'ai-highlighted-dish' : ''
                   }`}
+                  style={{ transform: 'translateZ(0)' }}
                   onClick={(e) => handleDishClick(item, e)}
                 >
                   <div className="flex gap-4">
@@ -861,7 +863,7 @@ export default function RestaurantMenu() {
           
           {/* Chat Panel */}
           <div 
-            className="w-full h-[60vh] rounded-t-3xl flex flex-col shadow-2xl relative z-10"
+            className="w-full h-[60vh] rounded-t-3xl flex flex-col shadow-2xl relative z-10 will-change-transform"
             style={{
               animation: chatClosing ? 'none' : 'slideUp 0.3s ease-out',
               transform: chatClosing ? 'translateY(100%)' : 'translateY(0)',
