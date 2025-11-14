@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 
 interface MenuItem {
   id: string;
@@ -711,9 +712,13 @@ export default function RestaurantMenu() {
                   new Map(allHighlightedItems.map(item => [item.name.toLowerCase(), item])).values()
                 );
                 return uniqueItems.map((item) => (
-                  <div 
+                  <motion.div 
                     key={`ai-pick-${item.id}`}
-                    className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: false, margin: "-150px" }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish my-4"
                     style={{ transform: 'translateZ(0)' }}
                     onClick={(e) => handleDishClick(item, e)}
                   >
@@ -750,7 +755,7 @@ export default function RestaurantMenu() {
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
                 ));
               })()}
             </div>
@@ -763,9 +768,13 @@ export default function RestaurantMenu() {
             {visibleSections.has(section.id) ? (
               <div className="space-y-4">
                 {section.items.map((item) => (
-                <div 
+                <motion.div 
                   key={item.id} 
-                  className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ${
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: false, margin: "-150px" }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow my-4 ${
                     highlightedDishes.has(item.id) ? 'ai-highlighted-dish' : ''
                   }`}
                   style={{ transform: 'translateZ(0)' }}
@@ -804,7 +813,7 @@ export default function RestaurantMenu() {
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
               </div>
             ) : (
