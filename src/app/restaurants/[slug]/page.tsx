@@ -716,8 +716,8 @@ export default function RestaurantMenu() {
                     key={`ai-pick-${item.id}`}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: false, margin: "-150px" }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    viewport={{ once: false, margin: "-70px" }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
                     className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish my-4"
                     style={{ transform: 'translateZ(0)' }}
                     onClick={(e) => handleDishClick(item, e)}
@@ -772,7 +772,7 @@ export default function RestaurantMenu() {
                   key={item.id} 
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: false, margin: "-150px" }}
+                  viewport={{ once: false, margin: "-70px" }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                   className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow my-4 ${
                     highlightedDishes.has(item.id) ? 'ai-highlighted-dish' : ''
