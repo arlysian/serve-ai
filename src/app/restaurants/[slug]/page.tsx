@@ -174,6 +174,24 @@ export default function RestaurantMenu() {
     }
   }, [chatHistory, chatLoading]);
 
+  // Prevent body scrolling on Android when chat is open
+  useEffect(() => {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (showChat && isAndroid) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [showChat]);
+
   // 🧭 Highlight active section precisely when its title hits the top (auto offset)
   useEffect(() => {
     if (!data?.sections?.length) return;
@@ -875,13 +893,13 @@ export default function RestaurantMenu() {
             }}
           >
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">AI Menu Assistant</h3>
+            <div className="px-4 py-1 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900">AI Menu Assistant</h3>
               <button 
                 onClick={handleCloseChat}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -900,10 +918,10 @@ export default function RestaurantMenu() {
               
               {chatHistory.map((message, index) => (
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-3 rounded-2xl ${
+                  <div className={`max-w-[80%] p-3 ${
                     message.role === 'user' 
-                      ? 'bg-black text-white [&_*]:text-white' 
-                      : 'bg-gray-100 text-gray-900 [&_*]:text-gray-900'
+                      ? 'bg-black text-white [&_*]:text-white rounded-3xl' 
+                      : 'bg-gray-100 text-gray-900 [&_*]:text-gray-900 rounded-2xl'
                   }`}>
                     <ReactMarkdown
                       allowedElements={['p', 'strong', 'em', 'ul', 'ol', 'li', 'br']}
@@ -1020,7 +1038,7 @@ export default function RestaurantMenu() {
             <div className="p-6 overflow-y-auto flex-1">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-3xl font-bold text-gray-900">{selectedDish.name}</h2>
-                <span className="text-2xl font-bold text-orange-500">€{selectedDish.price.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-black px-4">€{selectedDish.price.toFixed(2)}</span>
               </div>
               
               {selectedDish.description && (
