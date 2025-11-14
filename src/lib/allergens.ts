@@ -12,7 +12,7 @@ OUTPUT RULES:
 - If the message does NOT clearly state an allergy/intolerance → return {"allergens": null}
 - If the user explicitly states an allergy or intolerance → return {"allergens": ["milk","gluten",...]}
 - Normalize allergens to this exact vocabulary:
-  milk, lactose, gluten, nuts, peanuts, sesame, soy, egg, fish, shellfish, mustard, celery, sulphites, molluscs, lupin
+  milk, lactose, gluten, nuts, peanuts, sesame, soy, egg, fish, shellfish, mustard, celery, sulphites, molluscs, lupin, dairy
 - Do NOT infer allergies from vegan/vegetarian/halal/kosher/spicy/diet preferences.
 - Return ONLY JSON.
 
