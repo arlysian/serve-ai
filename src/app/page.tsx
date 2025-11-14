@@ -222,7 +222,7 @@ export default function Home() {
                     <path d="M43.8,41.2,33.9,16.3A2.1,2.1,0,0,0,32,15H30a2.1,2.1,0,0,0-1.9,1.3L23.3,28.4a24,24,0,0,1-5.6-4.3c3.4-4,5.9-8.8,6.2-13.1h2A2.1,2.1,0,0,0,28,9.3,2,2,0,0,0,26,7H17.5V4.1A2.1,2.1,0,0,0,15.8,2a2,2,0,0,0-2.3,2V7H6.1A2.1,2.1,0,0,0,4,8.7,2,2,0,0,0,6,11H19.9c-.3,3-2.3,6.7-4.9,10.1a34.1,34.1,0,0,1-3.2-4.9A2.1,2.1,0,0,0,9.6,15a2,2,0,0,0-1.4,2.9,39.1,39.1,0,0,0,4.1,6.2,24,24,0,0,1-7,5A2.2,2.2,0,0,0,4,31.4,2,2,0,0,0,6,33l.8-.2A26.4,26.4,0,0,0,15,27a28.1,28.1,0,0,0,6.8,5.1l-3.6,9.1A2,2,0,0,0,20,44a2.2,2.2,0,0,0,1.9-1.3L25.8,33H36.2l3.9,9.7A2.2,2.2,0,0,0,42,44a2,2,0,0,0,1.8-2.8ZM27.4,29,31,19.9,34.6,29Z"/>
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Menus in every guest's language.</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Menus in every guest&apos;s language.</h3>
                 <p className="text-gray-600">Offer digital menus and AI support in multiple languages for a welcoming experience.</p>
               </div>
             </AnimatedCard>
@@ -655,7 +655,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <p className="text-sm uppercase tracking-wider text-gray-500 mb-2">CONTACT</p>
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Get in touch today</h2>
-            <p className="text-xl text-gray-600">Questions? We're here to help.</p>
+            <p className="text-xl text-gray-600">Questions? We&apos;re here to help.</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
