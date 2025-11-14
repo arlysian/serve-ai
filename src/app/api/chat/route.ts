@@ -8,6 +8,7 @@ import {
   updateSummary,
 } from "../../../lib/memory";
 import { checkRateLimit } from "../../../lib/rateLimit";
+import { extractAllergens } from "../../../lib/allergens";
 
 // --- 1. ENV SETUP ---
 const supabase = createClient(
@@ -26,7 +27,6 @@ interface MenuItem {
   price: number;
   allergens?: string[] | null;
   tags?: string[] | null;
-  menu_sections?: { name?: string | null };
 }
 
 interface MenuSection {
@@ -38,17 +38,45 @@ interface Restaurant {
   name: string;
 }
 
+// --- FILTER HELPER ---
+const filterMenuByAllergens = (
+  sections: MenuSection[],
+  allergens: string[]
+): MenuSection[] => {
+  if (allergens.length === 0) return sections;
+
+  return sections.map(section => ({
+    ...section,
+    menu_items: (section.menu_items || []).filter(item => {
+      const itemAllergens = item.allergens || [];
+      return !itemAllergens.some(a => allergens.includes(a));
+    })
+  }));
+};
+
+// --- COMPRESSOR ---
+const compressMenu = (sections: MenuSection[]) =>
+  sections.map(s => ({
+    s: s.name,
+    i: (s.menu_items || []).map(m => ({
+      n: m.name,
+      d: m.description ? m.description.slice(0, 120) : "",
+      p: m.price,
+      a: m.allergens,
+      t: m.tags,
+    })),
+  }));
+
 // --- 3. HANDLER ---
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
+    const body = await req.json() as {
       restaurant_id?: string;
       question?: string;
-      dish_id?: string;
       session_id?: string;
     };
 
-    const { restaurant_id, question, dish_id, session_id } = body;
+    const { restaurant_id, question, session_id } = body;
 
     // --- VALIDATION ---
     if (!restaurant_id || !question) {
@@ -58,7 +86,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Message length validation (max 800 characters)
     if (question.length > 800) {
       return NextResponse.json(
         { error: "Message too long. Maximum 800 characters allowed." },
@@ -67,120 +94,77 @@ export async function POST(req: Request) {
     }
 
     // --- RATE LIMITING ---
-    // Check BOTH session and IP to prevent bypass via fake session_ids
-    const sessionIdentifier = session_id || 'no-session';
-    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
-                      req.headers.get('x-real-ip') || 
-                      'unknown-ip';
-    
-    // Session-based limit: 10 requests per minute per session
-    const sessionLimited = !(await checkRateLimit(`session:${sessionIdentifier}`, 10, 60 * 1000));
-    
-    // IP-based limit: 30 requests per minute per IP (allows max 3 concurrent sessions)
-    const ipLimited = !(await checkRateLimit(`ip:${ipAddress}`, 30, 60 * 1000));
-    
+    const sessionIdentifier = session_id || "no-session";
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown-ip";
+
+    const sessionLimited = !(await checkRateLimit(
+      `session:${sessionIdentifier}`,
+      10,
+      60 * 1000
+    ));
+    const ipLimited = !(await checkRateLimit(
+      `ip:${ipAddress}`,
+      30,
+      60 * 1000
+    ));
+
     if (sessionLimited || ipLimited) {
       return NextResponse.json(
-        { 
-          error: "Too many requests. Please wait a moment before trying again.",
-          retryAfter: 60 
-        },
-        { 
-          status: 429,
-          headers: {
-            'Retry-After': '60'
-          }
-        }
+        { error: "Too many requests. Please wait a moment before trying again.", retryAfter: 60 },
+        { status: 429, headers: { "Retry-After": "60" } }
       );
     }
 
-    // --- MEMORY HANDLING ---
+    // --- SESSION & MEMORY ---
     const sid = await getOrCreateSession(restaurant_id, session_id);
-    const { summary, recent } = await loadMemory(sid);
+    const { summary, recent, allergens: sessionAllergens } = await loadMemory(sid);
 
-    // --- CONTEXT BUILDING ---
-    let context: Record<string, unknown> = {};
-    let restaurant_name = "";
+    // --- EXTRACT CURRENT TURN ALLERGENS ---
+    const extracted = await extractAllergens(question);
 
+    // --- MERGE ALLERGENS (SESSION + NEW) ---
+    let mergedAllergens = [...sessionAllergens];
+    if (extracted && extracted.length > 0) {
+      mergedAllergens = Array.from(new Set([...mergedAllergens, ...extracted]));
+    }
+
+    // --- FETCH RESTAURANT NAME ---
     const restaurantRes: PostgrestSingleResponse<Restaurant> = await supabase
       .from("restaurants")
       .select("name")
       .eq("id", restaurant_id)
       .single();
 
-    if (restaurantRes.data) restaurant_name = restaurantRes.data.name;
+    const restaurant_name = restaurantRes.data?.name || "";
 
-    const compressMenu = (sections: MenuSection[]) =>
-      sections.map((s) => ({
-        s: s.name,
-        i:
-          s.menu_items?.map((m) => ({
-            n: m.name,
-            d: m.description ? m.description.slice(0, 120) : "",
-            p: m.price,
-            a: m.allergens,
-            t: m.tags,
-          })) ?? [],
-      }));
-
-    const compressDish = (dish: MenuItem) => ({
-      n: dish.name,
-      d: dish.description ? dish.description.slice(0, 150) : "",
-      p: dish.price,
-      a: dish.allergens,
-      t: dish.tags,
-      s: dish.menu_sections?.name || null,
-    });
-
-    if (dish_id) {
-      const dishRes: PostgrestSingleResponse<MenuItem> = await supabase
-        .from("menu_items")
-        .select(
-          `
-          id,
+    // --- FETCH & FILTER MENU SECTIONS ---
+    const sectionsRes: PostgrestSingleResponse<MenuSection[]> = await supabase
+      .from("menu_sections")
+      .select(`
+        name,
+        menu_items (
           name,
           description,
           price,
           allergens,
-          tags,
-          menu_sections(name)
-        `
+          tags
         )
-        .eq("id", dish_id)
-        .single();
+      `)
+      .eq("restaurant_id", restaurant_id);
 
-      if (dishRes.error) console.error("Dish fetch error:", dishRes.error);
-      context = {
-        restaurant: restaurant_name,
-        dish: dishRes.data ? compressDish(dishRes.data) : null,
-      };
-    } else {
-      const sectionsRes: PostgrestSingleResponse<MenuSection[]> = await supabase
-        .from("menu_sections")
-        .select(
-          `
-          name,
-          menu_items (
-            name,
-            description,
-            price,
-            allergens,
-            tags
-          )
-        `
-        )
-        .eq("restaurant_id", restaurant_id);
+    const rawSections = sectionsRes.data ?? [];
+    const filteredSections = filterMenuByAllergens(rawSections, mergedAllergens);
 
-      if (sectionsRes.error)
-        console.error("Sections fetch error:", sectionsRes.error);
-      context = {
-        restaurant: restaurant_name,
-        sections: sectionsRes.data ? compressMenu(sectionsRes.data) : [],
-      };
-    }
+    // --- CONTEXT (ALWAYS SECTIONS MODE) ---
+    const context = {
+      restaurant: restaurant_name,
+      sections: compressMenu(filteredSections),
+    };
 
-    // --- 4. CALL OPENAI ---
-
+    // --- 4. OPENAI CALL ---
     const systemPrompt = `
 You are the AI assistant for ${restaurant_name}.
 Use the provided JSON context (sections, dishes, or dish) to answer questions about the menu.
@@ -188,8 +172,6 @@ Keys: s=section, n=name, d=description, p=price, a=allergens, t=tags.
 
 Treat the memory summary as background knowledge about the user — their usual preferences or past statements.
 Always prioritize the user's most recent message to determine current intent.
-If it slightly contradicts the memory, politely follow the new request while acknowledging relevant past info.
-
 
 TONE & STYLE:
 - When describing specific dish, use warm, sensory, and appetizing language
@@ -199,40 +181,21 @@ TONE & STYLE:
 
 CONSTRAINTS:
 - You can infer things, but only from the JSON and memory
-- Never contradict the allergen data
-- Always prioritize allergen safety over suggestiveness
-- If a dish includes an allergen the user said they cannot have, explicitly state that it is NOT suitable
-- Before suggesting a dish, always check if it contains any allergens that the user said they cannot have
-- If no suitable dishes exist, say so honestly
-- The user’s allergen or dietary restrictions apply to ALL follow-up messages until the user says otherwise.
-
 - Use language like "typically" or "usually" when uncertain
 - Keep the format customer friendly. When listing items, limit to 2-3 maximum
 - Keep answers concise (2-3 sentences max)
 - Never fabricate ingredients or details not in the data
 - Return plain text only
+- Use dish names only from the JSON data and output them exactly as written. Never translate, abbreviate, or adjust the dish names.
 `;
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
+      { role: "system", content: `Restaurant context:\n${JSON.stringify(context)}` }
     ];
 
-    if (summary) {
-      messages.push({
-        role: "system",
-        content: `User memory summary:\n${summary}`,
-      });
-    }
-
-    messages.push({
-      role: "system",
-      content: `Restaurant context:\n${JSON.stringify(context)}`,
-    });
-
-    if (recent.length) {
-      for (const m of recent) {
-        messages.push({ role: m.role as "user" | "assistant", content: m.content });
-      }
+    for (const m of recent) {
+      messages.push({ role: m.role as "user" | "assistant", content: m.content });
     }
 
     messages.push({ role: "user", content: question });
@@ -244,32 +207,32 @@ CONSTRAINTS:
       messages,
     });
 
-    const answer =
-      completion.choices[0].message?.content?.trim() || "No answer.";
+    const answer = completion.choices[0].message?.content?.trim() || "No answer.";
 
-    // --- MEMORY UPDATE & LOGGING ---
+    // --- MEMORY UPDATE ---
     await saveTurn(sid, question, answer);
     await updateSummary(sid, summary, question, answer, openai);
 
+    // --- UPDATE ALLERGEN MEMORY ---
+    
+    const upsertResult = await supabase
+      .from("chat_memory")
+      .upsert({ session_id: sid, allergens: mergedAllergens }, { onConflict: "session_id" });
+
+    // --- LOGGING ---
     await supabase.from("llm_logs").insert({
       restaurant_id,
-      dish_id,
       question,
       answer,
       tokens: completion.usage?.total_tokens || 0,
     });
 
     return NextResponse.json({ answer, session_id: sid });
+
   } catch (err) {
     console.error("Error in /api/ask:", err);
-    if (err instanceof Error) {
-      return NextResponse.json(
-        { error: "Internal Server Error", details: err.message },
-        { status: 500 }
-      );
-    }
     return NextResponse.json(
-      { error: "Unknown server error" },
+      { error: "Internal Server Error", details: err instanceof Error ? err.message : "Unknown server error" },
       { status: 500 }
     );
   }

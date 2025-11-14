@@ -716,7 +716,7 @@ export default function RestaurantMenu() {
                     key={`ai-pick-${item.id}`}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: false, margin: "-70px" }}
+                    viewport={{ once: true, margin: "-80px" }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
                     className="bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow ai-highlighted-dish my-4"
                     style={{ transform: 'translateZ(0)' }}
@@ -772,7 +772,7 @@ export default function RestaurantMenu() {
                   key={item.id} 
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: false, margin: "-70px" }}
+                  viewport={{ once: true, margin: "-80px" }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                   className={`bg-white rounded-2xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow my-4 ${
                     highlightedDishes.has(item.id) ? 'ai-highlighted-dish' : ''
@@ -838,8 +838,8 @@ export default function RestaurantMenu() {
 
       {/* Floating Input Bar */}
       <div className="fixed bottom-4 left-4 right-4 z-50 will-change-transform">
-        <div className="shadow-2xl border border-white/60 px-4 py-3 flex items-center gap-3" style={{ 
-          borderRadius: '28px', 
+        <div className="shadow-2xl border border-white/60 px-3.5 py-2.25 flex items-center gap-3" style={{ 
+          borderRadius: '32px', 
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)', 
           transform: 'translateZ(0)', 
           backfaceVisibility: 'hidden',
@@ -853,7 +853,7 @@ export default function RestaurantMenu() {
             type="text"
             placeholder="Ask anything"
             maxLength={800}
-            className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-400 pl-4"
+            className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4"
           />
           
           {/* Microphone Icon (Deleted for now. Pointless to have.) */}

@@ -17,13 +17,14 @@ export async function getOrCreateSession(restaurant_id: string, session_id?: str
 
 export async function loadMemory(session_id: string) {
   const [{ data: mem }, { data: msgs }] = await Promise.all([
-    sb.from("chat_memory").select("summary,prefs").eq("session_id", session_id).maybeSingle(),
+    sb.from("chat_memory").select("summary,prefs,allergens").eq("session_id", session_id).maybeSingle(),
     sb.from("chat_messages").select("role,content").eq("session_id", session_id)
       .order("created_at", { ascending: false }).limit(6)
   ]);
   return {
     summary: mem?.summary ?? "",
     prefs: mem?.prefs ?? {},
+    allergens: mem?.allergens ?? [],
     recent: (msgs ?? []).reverse() // oldest → newest
   };
 }
@@ -38,8 +39,8 @@ export async function saveTurn(session_id: string, userQ: string, assistantA: st
 export async function updateSummary(session_id: string, oldSummary: string, userQ: string, assistantA: string, openai: OpenAI) {
   // Ultra-cheap summarizer: keep deterministic & short; 4o-mini with low tokens.
   const prompt = `
-Update the session summary (≤ 800 chars). Keep only stable facts and explicit user preferences.
-Do NOT include prices; store diet constraints only as stated by the user.
+Update the session summary (≤ 800 chars). Keep only user preferences.
+Do NOT include prices; store only preferences, don't include allergies or intolerances.
 Existing summary:
 """${oldSummary}"""
 New turn:
