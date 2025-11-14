@@ -1,6 +1,6 @@
-1. FIX. When using other languages in AI chat that it shows the AI picks and not just neglects it.
-2. FIX. When asking agent for "I am have a gluten alergy, but I want some pizza." It provides food
-  suggestions that are not gluten-free but it considers them as gluten-free. Conflicting with the
-  JSON that is provided to it. Instead of that it should say that the restaurant does not have any
-  pizzas that are gluten-free and instead should suggest other foods, that are actually
-  gluten-free.
+Product
+
+1. Add text streamming https://youtu.be/vgICBsz5Qtc?si=vq4BPZdA6PMgal-5 by character 
+2. Add voice support 
+3. Localize to NL 
+
