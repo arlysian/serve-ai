@@ -680,8 +680,8 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Phone</h3>
               <p className="text-gray-600 mb-2">Call for quick assistance.</p>
-              <a href="tel:+37061880280" className="text-[#080c24] hover:underline">
-                +370 618 80280
+              <a href="tel:+31616545061" className="text-[#080c24] hover:underline">
+                +31 616 545061
               </a>
             </div>
           </div>
