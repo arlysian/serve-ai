@@ -200,34 +200,75 @@ CONSTRAINTS:
 
     messages.push({ role: "user", content: question });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      max_tokens: 400,
-      messages,
+    // --- STREAMING SETUP ---
+    const stream = new ReadableStream({
+      async start(controller) {
+        let fullAnswer = "";
+        let totalTokens = 0;
+
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            temperature: 0.2,
+            max_tokens: 400,
+            messages,
+            stream: true,
+          });
+
+          // Stream chunks to client
+          for await (const chunk of completion) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              fullAnswer += content;
+              // Send chunk to client
+              const data = `data: ${JSON.stringify({ content, done: false })}\n\n`;
+              controller.enqueue(new TextEncoder().encode(data));
+            }
+            
+            // Track token usage
+            if (chunk.usage?.total_tokens) {
+              totalTokens = chunk.usage.total_tokens;
+            }
+          }
+
+          // Send final message
+          const finalData = `data: ${JSON.stringify({ done: true, session_id: sid })}\n\n`;
+          controller.enqueue(new TextEncoder().encode(finalData));
+          controller.close();
+
+          // --- MEMORY UPDATE (after streaming completes) ---
+          const answer = fullAnswer.trim() || "No answer.";
+          await saveTurn(sid, question, answer);
+          await updateSummary(sid, summary, question, answer, openai);
+
+          // --- UPDATE ALLERGEN MEMORY ---
+          await supabase
+            .from("chat_memory")
+            .upsert({ session_id: sid, allergens: mergedAllergens }, { onConflict: "session_id" });
+
+          // --- LOGGING ---
+          await supabase.from("llm_logs").insert({
+            restaurant_id,
+            question,
+            answer,
+            tokens: totalTokens || 0,
+          });
+        } catch (error) {
+          console.error("Streaming error:", error);
+          const errorData = `data: ${JSON.stringify({ error: "Streaming failed", done: true })}\n\n`;
+          controller.enqueue(new TextEncoder().encode(errorData));
+          controller.close();
+        }
+      },
     });
 
-    const answer = completion.choices[0].message?.content?.trim() || "No answer.";
-
-    // --- MEMORY UPDATE ---
-    await saveTurn(sid, question, answer);
-    await updateSummary(sid, summary, question, answer, openai);
-
-    // --- UPDATE ALLERGEN MEMORY ---
-    
-    const upsertResult = await supabase
-      .from("chat_memory")
-      .upsert({ session_id: sid, allergens: mergedAllergens }, { onConflict: "session_id" });
-
-    // --- LOGGING ---
-    await supabase.from("llm_logs").insert({
-      restaurant_id,
-      question,
-      answer,
-      tokens: completion.usage?.total_tokens || 0,
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
-
-    return NextResponse.json({ answer, session_id: sid });
 
   } catch (err) {
     console.error("Error in /api/ask:", err);

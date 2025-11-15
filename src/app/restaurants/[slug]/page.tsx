@@ -315,6 +315,9 @@ export default function RestaurantMenu() {
     
     setChatLoading(true);
     setChatHistory(prev => [...prev, { role: "user", content: message }]);
+    
+    // Add empty assistant message that we'll update as chunks arrive
+    setChatHistory(prev => [...prev, { role: "assistant", content: "" }]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -327,62 +330,152 @@ export default function RestaurantMenu() {
         }),
       });
 
-      const json = await res.json();
-      
       // Handle rate limiting
       if (res.status === 429) {
-        setChatHistory(prev => [...prev, { 
-          role: "assistant", 
-          content: "You're sending messages too quickly. Please wait a moment before trying again." 
-        }]);
+        setChatHistory(prev => {
+          const newHistory = [...prev];
+          newHistory.pop(); // Remove empty assistant message
+          return [...newHistory, { 
+            role: "assistant", 
+            content: "You're sending messages too quickly. Please wait a moment before trying again." 
+          }];
+        });
         setChatLoading(false);
         return;
       }
       
-      if (!res.ok) throw new Error(json.error || "Chat request failed");
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Chat request failed");
+      }
 
-      setSessionId(json.session_id);
-      const aiResponse = json.answer || "No response.";
-      setChatHistory(prev => [...prev, { role: "assistant", content: aiResponse }]);
-      
-      // Parse AI response to find mentioned dishes
-      if (data?.sections) {
-        const mentionedDishIds = new Set<string>();
-        data.sections.forEach(section => {
-          section.items.forEach(item => {
-            // Check if dish name appears in AI response (case-insensitive)
-            if (aiResponse.toLowerCase().includes(item.name.toLowerCase())) {
-              mentionedDishIds.add(item.id);
+      // Handle streaming response with character-by-character animation
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullResponse = "";
+      let displayedResponse = "";
+      const characterQueue: string[] = [];
+      let isStreamingComplete = false;
+      let lastUpdateTime = 0;
+      const CHAR_DELAY = 20; // Delay between characters in ms
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      // Start continuous character processing loop
+      const processCharacters = async () => {
+        while (!isStreamingComplete || characterQueue.length > 0) {
+          if (characterQueue.length > 0) {
+            const now = Date.now();
+            // Only process if enough time has passed since last update
+            if (now - lastUpdateTime >= CHAR_DELAY) {
+              const char = characterQueue.shift();
+              if (char) {
+                displayedResponse += char;
+                lastUpdateTime = now;
+                
+                // Update the last message (assistant message) with displayed content
+                setChatHistory(prev => {
+                  const newHistory = [...prev];
+                  newHistory[newHistory.length - 1] = {
+                    role: "assistant",
+                    content: displayedResponse
+                  };
+                  return newHistory;
+                });
+              }
             }
-          });
-        });
-        
-        // Add newly mentioned dishes to highlights
-        if (mentionedDishIds.size > 0) {
-          setHighlightedDishes(prev => new Set([...prev, ...mentionedDishIds]));
+          }
           
-          // Auto-scroll to AI Picks section
-          setTimeout(() => {
-            if (aiPicksRef.current) {
-              const navEl = document.querySelector(".section-nav") as HTMLElement | null;
-              const navHeight = navEl?.offsetHeight || 0;
-              const targetPosition = aiPicksRef.current.offsetTop - navHeight - 20;
+          // Small delay to prevent tight loop
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+      };
+
+      // Start the character processing loop
+      processCharacters();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const streamData = JSON.parse(line.slice(6));
               
-              window.scrollTo({
-                top: targetPosition,
-                behavior: 'smooth'
-              });
+              if (streamData.error) {
+                throw new Error(streamData.error);
+              }
+
+              if (streamData.content) {
+                fullResponse += streamData.content;
+                // Add characters to queue for animated display
+                const newChars = streamData.content.split("");
+                characterQueue.push(...newChars);
+              }
+
+              if (streamData.done) {
+                isStreamingComplete = true;
+                
+                // Wait for queue to finish processing
+                while (characterQueue.length > 0) {
+                  await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                if (streamData.session_id) {
+                  setSessionId(streamData.session_id);
+                }
+                setChatLoading(false);
+                
+                // Parse AI response to find mentioned dishes using component's data
+                if (fullResponse && data?.sections) {
+                  const mentionedDishIds = new Set<string>();
+                  data.sections.forEach((section: MenuSection) => {
+                    section.items.forEach((item: MenuItem) => {
+                      if (fullResponse.toLowerCase().includes(item.name.toLowerCase())) {
+                        mentionedDishIds.add(item.id);
+                      }
+                    });
+                  });
+                  
+                  if (mentionedDishIds.size > 0) {
+                    setHighlightedDishes(prev => new Set([...prev, ...mentionedDishIds]));
+                    
+                    setTimeout(() => {
+                      if (aiPicksRef.current) {
+                        const navEl = document.querySelector(".section-nav") as HTMLElement | null;
+                        const navHeight = navEl?.offsetHeight || 0;
+                        const targetPosition = aiPicksRef.current.offsetTop - navHeight - 20;
+                        
+                        window.scrollTo({
+                          top: targetPosition,
+                          behavior: 'smooth'
+                        });
+                      }
+                    }, 100);
+                  }
+                }
+              }
+            } catch (parseError) {
+              console.error("Error parsing SSE data:", parseError);
             }
-          }, 100);
+          }
         }
       }
     } catch (err) {
       console.error("Chat error:", err);
-      setChatHistory(prev => [
-        ...prev,
-        { role: "assistant", content: "Sorry, something went wrong." },
-      ]);
-    } finally {
+      setChatHistory(prev => {
+        const newHistory = [...prev];
+        newHistory.pop(); // Remove empty assistant message
+        return [...newHistory, { role: "assistant", content: "Sorry, something went wrong." }];
+      });
       setChatLoading(false);
     }
   };
@@ -950,17 +1043,6 @@ export default function RestaurantMenu() {
                 </div>
               ))}
               
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 p-3 rounded-2xl">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
             
             {/* Chat Input */}
