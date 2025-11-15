@@ -168,6 +168,7 @@ export async function POST(req: Request) {
     const systemPrompt = `
 You are the AI assistant for ${restaurant_name}.
 Use the provided JSON context (sections, dishes, or dish) to answer questions about the menu.
+The JSON is filtered by allergens, meaning you can safely recommend dishes that are in it. 
 Keys: s=section, n=name, d=description, p=price, a=allergens, t=tags.
 
 Treat the memory summary as background knowledge about the user — their usual preferences or past statements.

@@ -87,6 +87,11 @@ export default function RestaurantMenu() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [highlightedDishes, setHighlightedDishes] = useState<Set<string>>(new Set());
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const lastMicClickRef = useRef<number>(0);
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
   // ✅ Fetch restaurant + menu data
@@ -192,6 +197,18 @@ export default function RestaurantMenu() {
       document.documentElement.style.overflow = "";
     };
   }, [showChat]);
+
+  // Cleanup media recorder on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // 🧭 Highlight active section precisely when its title hits the top (auto offset)
   useEffect(() => {
@@ -949,12 +966,163 @@ export default function RestaurantMenu() {
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4"
           />
           
-          {/* Microphone Icon (Deleted for now. Pointless to have.) */}
-          {/* <button className="p-2 hover:bg-white/50 rounded-full transition-colors">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Microphone Button */}
+          <button 
+            onClick={async () => {
+              if (isRecording) {
+                // Prevent spam: require 1 second delay after starting recording
+                const timeSinceStart = Date.now() - lastMicClickRef.current;
+                if (timeSinceStart < 1000) {
+                  return;
+                }
+                
+                // Stop recording
+                if (recordingTimeoutRef.current) {
+                  clearTimeout(recordingTimeoutRef.current);
+                  recordingTimeoutRef.current = null;
+                }
+                if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                  mediaRecorderRef.current.stop();
+                }
+                setIsRecording(false);
+                return;
+              }
+
+              // Open chat when starting to record
+              if (!showChat) {
+                setChatClosing(false);
+                setShowChat(true);
+                setTimeout(() => setBackdropVisible(true), 10);
+              }
+
+              // Record when recording started
+              lastMicClickRef.current = Date.now();
+
+              try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Initialize MediaRecorder
+                const mediaRecorder = new MediaRecorder(stream, {
+                  mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+                });
+                
+                mediaRecorderRef.current = mediaRecorder;
+                audioChunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                  if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                  }
+                };
+
+                mediaRecorder.onstop = async () => {
+                  // Clear timeout if still active
+                  if (recordingTimeoutRef.current) {
+                    clearTimeout(recordingTimeoutRef.current);
+                    recordingTimeoutRef.current = null;
+                  }
+                  
+                  // Stop all tracks
+                  stream.getTracks().forEach(track => track.stop());
+
+                  // Create audio blob
+                  const audioBlob = new Blob(audioChunksRef.current, { 
+                    type: mediaRecorder.mimeType 
+                  });
+
+                  // Send to Whisper API
+                  try {
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+
+                    const response = await fetch('/api/transcribe', {
+                      method: 'POST',
+                      body: formData,
+                    });
+
+                    if (!response.ok) {
+                      throw new Error('Transcription failed');
+                    }
+
+                    const transcriptionData = await response.json();
+                    
+                    // Validate transcription semantically
+                    if (transcriptionData.text && transcriptionData.text.trim()) {
+                      try {
+                        const validateResponse = await fetch('/api/validate-transcription', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ text: transcriptionData.text }),
+                        });
+
+                        if (validateResponse.ok) {
+                          const validationData = await validateResponse.json();
+                          
+                          // Only fill input if validation passes
+                          if (validationData.valid && validationData.text && floatingInputRef.current) {
+                            floatingInputRef.current.value = validationData.text;
+                          }
+                          // If invalid, silently ignore (don't show hallucinated text)
+                        }
+                      } catch (validationError) {
+                        console.error('Validation error:', validationError);
+                        // On validation error, still use the transcription (fail open)
+                        if (floatingInputRef.current && transcriptionData.text) {
+                          floatingInputRef.current.value = transcriptionData.text.trim();
+                        }
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Transcription error:', error);
+                    alert('Failed to transcribe audio. Please try again.');
+                  }
+
+                  // Clear chunks
+                  audioChunksRef.current = [];
+                };
+
+                // Start recording
+                mediaRecorder.start();
+                setIsRecording(true);
+                
+                // Auto-stop after 30 seconds
+                recordingTimeoutRef.current = setTimeout(() => {
+                  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                    mediaRecorderRef.current.stop();
+                  }
+                  setIsRecording(false);
+                  recordingTimeoutRef.current = null;
+                }, 30000);
+
+              } catch (error) {
+                console.error('Microphone access error:', error);
+                if (error instanceof Error && error.name === 'NotAllowedError') {
+                  alert('Microphone permission denied. Please allow microphone access.');
+                } else {
+                  alert('Failed to access microphone. Please try again.');
+                }
+                setIsRecording(false);
+              }
+            }}
+            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${
+              isRecording 
+                ? 'bg-blue-700 hover:bg-red-600' 
+                : 'hover:bg-gray-100'
+            }`}
+            title={isRecording ? "Stop recording" : "Voice input"}
+          >
+            <svg 
+              className={`w-5 h-5 ${isRecording ? 'text-white' : 'text-gray-600'}`} 
+              fill={isRecording ? "currentColor" : "none"} 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-          </button> */}
+          </button>
           
           {/* Send Button */}
           <button 
