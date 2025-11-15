@@ -929,8 +929,8 @@ export default function RestaurantMenu() {
         ))}
       </div>
 
-      {/* Floating Input Bar */}
-      <div className="fixed bottom-4 left-4 right-4 z-50 will-change-transform">
+      {/* Floating Input Bar - stays on top */}
+      <div className="fixed bottom-4 left-4 right-4 z-[60] will-change-transform">
         <div className="shadow-2xl border border-white/60 px-3.5 py-2.25 flex items-center gap-3" style={{ 
           borderRadius: '32px', 
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)', 
@@ -970,7 +970,7 @@ export default function RestaurantMenu() {
 
       {/* Chat Overlay */}
       {showChat && (
-        <div className="fixed inset-0 z-50 flex items-end">
+        <div className="fixed inset-0 z-[55] flex items-end">
           {/* Backdrop shading */}
           <div 
             className="absolute inset-0 bg-black"
@@ -1007,8 +1007,8 @@ export default function RestaurantMenu() {
               </button>
             </div>
             
-            {/* Chat Messages */}
-            <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Chat Messages - Full window */}
+            <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
               {chatHistory.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
                   <p>Ask me anything about the menu!</p>
@@ -1044,29 +1044,7 @@ export default function RestaurantMenu() {
               ))}
               
             </div>
-            
-            {/* Chat Input */}
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                <input
-                  ref={chatInputRef}
-                  type="text"
-                  placeholder="Ask about the menu..."
-                  maxLength={800}
-                  className="flex-1 px-4 py-3 bg-gray-100 rounded-2xl border-0 focus:outline-none focus:bg-white text-gray-800 placeholder-gray-500"
-                />
-                <button
-                  type="submit"
-                  disabled={chatLoading}
-                  className="flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 rounded-full disabled:opacity-50 disabled:hover:bg-black flex-shrink-0 shadow-sm transition-all duration-200"
-                >
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h12m0 0l-6-6m6 6l-6 6" />
-                  </svg>
-                </button>
-              </div>
-            </form>
-            </div>
+          </div>
         </div>
       )}
 
