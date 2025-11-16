@@ -67,6 +67,10 @@ export default function RestaurantMenu() {
   const [data, setData] = useState<RestaurantData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
+  const truncate = (text: string, limit: number) => {
+    if (!text) return "";
+    return text.length > limit ? `${text.slice(0, limit)}...` : text;
+  };
   const [showChat, setShowChat] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -77,9 +81,11 @@ export default function RestaurantMenu() {
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
+  const lastChatOpenViaSendRef = useRef<number>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFullHero, setShowFullHero] = useState(true);
   const [chatClosing, setChatClosing] = useState(false);
+  const [selectedLangIndex, setSelectedLangIndex] = useState(0);
   const [backdropVisible, setBackdropVisible] = useState(false);
   const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
   const [dishPosition, setDishPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
@@ -196,6 +202,26 @@ export default function RestaurantMenu() {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
+  }, [showChat]);
+
+  // Auto-scroll to bottom when chat opens
+  useEffect(() => {
+    if (!showChat) return;
+
+    const scrollToBottom = () => {
+      if (chatMessagesRef.current) {
+        chatMessagesRef.current.scrollTo({
+          top: chatMessagesRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Try immediately after open
+    requestAnimationFrame(scrollToBottom);
+    // Fallback after a brief delay to ensure content is laid out
+    const timeout = setTimeout(scrollToBottom, 450);
+    return () => clearTimeout(timeout);
   }, [showChat]);
 
   // Cleanup media recorder on unmount
@@ -509,12 +535,29 @@ export default function RestaurantMenu() {
   const handleSendButtonClick = async () => {
     const floatingMessage = floatingInputRef.current?.value || "";
 
-    // Open chat overlay
-    setChatClosing(false);
-    setShowChat(true);
-    setTimeout(() => setBackdropVisible(true), 10);
+    // If no message: toggle chat with 1s guard after opening via Send
+    if (!floatingMessage.trim()) {
+      if (showChat) {
+        const now = Date.now();
+        // Prevent closing within 1 second of opening via Send
+        if (now - lastChatOpenViaSendRef.current < 500) return;
+        handleCloseChat();
+      } else {
+        setChatClosing(false);
+        setShowChat(true);
+        setTimeout(() => setBackdropVisible(true), 10);
+        lastChatOpenViaSendRef.current = Date.now();
+      }
+      return;
+    }
 
-    if (!floatingMessage.trim()) return;
+    // Ensure chat is open when sending (and mark open time if opened via Send)
+    if (!showChat) {
+      setChatClosing(false);
+      setShowChat(true);
+      setTimeout(() => setBackdropVisible(true), 10);
+      lastChatOpenViaSendRef.current = Date.now();
+    }
     floatingInputRef.current!.value = "";
     await sendChatMessage(floatingMessage);
   };
@@ -650,6 +693,25 @@ export default function RestaurantMenu() {
             {data.restaurant.description}
           </p>
         )}
+
+        {/* Language Buttons - appearance only (no logic) */}
+        <div className="flex items-center gap-3 mb-6">
+          {['EN', 'NL'].map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setSelectedLangIndex(index)}
+              aria-pressed={selectedLangIndex === index}
+              className={`px-4 py-2 rounded-full border ${
+                selectedLangIndex === index
+                  ? 'bg-black text-white border-white shadow-md'
+                  : 'bg-white/10 text-white border-white/60 hover:bg-white/20'
+              } backdrop-blur-sm transition-all duration-200`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         
         {/* Social Media Buttons */}
         {data.restaurant.hero_socials && (() => {
@@ -855,13 +917,13 @@ export default function RestaurantMenu() {
                         <h4 className="font-semibold text-gray-900 text-lg">
                           {item.name}
                         </h4>
-                        <span className="font-bold text-lg text-gray-900">
+                        <span className="font-bold text-lg text-gray-900 pl-2">
                           €{item.price.toFixed(2)}
                         </span>
                       </div>
                     
                       {item.description && (
-                        <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                        <p className="text-gray-600 text-sm mb-2">{truncate(item.description, 70)}</p>
                       )}
                     </div>
                   </div>
@@ -913,13 +975,13 @@ export default function RestaurantMenu() {
                         <h4 className="font-semibold text-gray-900 text-lg">
                           {item.name}
                         </h4>
-                        <span className="font-bold text-lg text-gray-900">
+                        <span className="font-bold text-lg text-gray-900 pl-2">
                           €{item.price.toFixed(2)}
                         </span>
                       </div>
                     
                       {item.description && (
-                        <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                        <p className="text-gray-600 text-sm mb-2">{truncate(item.description, 70)}</p>
                       )}
                     </div>
                   </div>
@@ -1244,81 +1306,84 @@ export default function RestaurantMenu() {
               transform: dishClosing ? 'scale(0.95)' : undefined
             }}
           >
-            {/* Large Dish Image */}
-            <div className="relative w-full max-h-[40vh] bg-white flex items-center justify-center overflow-hidden">
-              {selectedDish.image_url ? (
-                <img
-                  src={selectedDish.image_url}
-                  alt={selectedDish.name}
-                  className="w-auto h-full max-h-[40vh] object-contain mx-auto transition-transform duration-300"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-white font-bold text-6xl">
-                    {selectedDish.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              
-              {/* Close Button */}
-              <button 
-                onClick={handleCloseDish}
-                className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg"
-              >
-                <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            {/* Fixed Close Button (does not scroll) */}
+            <button 
+              onClick={handleCloseDish}
+              className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-lg z-10"
+            >
+              <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-            {/* Dish Details */}
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-3xl font-bold text-gray-900">{selectedDish.name}</h2>
-                <span className="text-2xl font-bold text-black px-4">€{selectedDish.price.toFixed(2)}</span>
+            {/* Scrollable Content (image + details) */}
+            <div className="overflow-y-auto max-h-[85vh] scrollbar-hide">
+              {/* Large Dish Image */}
+              <div className="relative w-full max-h-[40vh] bg-white flex items-center justify-center overflow-hidden">
+                {selectedDish.image_url ? (
+                  <img
+                    src={selectedDish.image_url}
+                    alt={selectedDish.name}
+                    className="w-auto h-full max-h-[40vh] object-contain mx-auto transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-white font-bold text-6xl">
+                      {selectedDish.name.charAt(0)}
+                    </span>
+                  </div>
+                )}
               </div>
-              
-              {selectedDish.description && (
-                <p className="text-gray-600 text-lg mb-6">{selectedDish.description}</p>
-              )}
 
-              {/* Tags and Allergens */}
-              {(selectedDish.tags || selectedDish.allergens) && (
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {selectedDish.tags?.map((tag, index) => (
-                    <span key={index} className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                      {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                    </span>
-                  ))}
-                  {selectedDish.allergens?.map((allergen, index) => (
-                    <span key={index} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
-                      {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
-                    </span>
-                  ))}
+              {/* Dish Details */}
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-3xl font-bold text-gray-900">{selectedDish.name}</h2>
+                  <span className="text-2xl font-bold text-black px-4">€{selectedDish.price.toFixed(2)}</span>
                 </div>
-              )}
+                
+                {selectedDish.description && (
+                  <p className="text-gray-600 text-lg mb-6">{selectedDish.description}</p>
+                )}
 
-              {/* Ask AI Button */}
-              <button
-                onClick={() => {
-                  handleCloseDish();
-                  setChatClosing(false);
-                  setShowChat(true);
-                  setTimeout(() => {
-                    setBackdropVisible(true);
-                    if (chatInputRef.current) {
-                      chatInputRef.current.value = `Tell me more about ${selectedDish.name}`;
-                      chatInputRef.current.focus();
-                    }
-                  }, 10);
-                }}
-                className="w-full border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-medium text-base hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <span>Ask AI about this</span>
-              </button>
+                {/* Tags and Allergens */}
+                {(selectedDish.tags || selectedDish.allergens) && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {selectedDish.tags?.map((tag, index) => (
+                      <span key={index} className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                        {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                      </span>
+                    ))}
+                    {selectedDish.allergens?.map((allergen, index) => (
+                      <span key={index} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
+                        {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Ask AI Button */}
+                <button
+                  onClick={() => {
+                    handleCloseDish();
+                    setChatClosing(false);
+                    setShowChat(true);
+                    setTimeout(() => {
+                      setBackdropVisible(true);
+                      if (chatInputRef.current) {
+                        chatInputRef.current.value = `Tell me more about ${selectedDish.name}`;
+                        chatInputRef.current.focus();
+                      }
+                    }, 10);
+                  }}
+                  className="w-full border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-medium text-base hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <span>Ask AI about this</span>
+                </button>
+              </div>
             </div>
           </div>
         </>

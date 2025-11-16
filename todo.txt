@@ -1,6 +1,5 @@
 Product
-
-1. Add text streamming https://youtu.be/vgICBsz5Qtc?si=vq4BPZdA6PMgal-5 by character 
-2. Add voice support 
-3. Localize to NL 
-
+ 
+1. Localize to NL 
+2. Fix "Tell me more about" based on language selected
+3. improve voice support
