@@ -13,6 +13,7 @@ export default function Home() {
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Feature flag: Uncomment the line below to enable the ordering feature
   // const ENABLE_ORDERING_FEATURE = true;
@@ -84,19 +85,57 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
+                href="/login"
+                className="hidden sm:block px-6 py-2 text-[#080c24] border border-[#080c24] rounded-lg hover:bg-[#f5f4f1] transition-colors text-sm font-medium"
+              >
+                Login
+              </Link>
+              <Link
                 href="/restaurants/ristorante-pizzeria-karalis"
-                className="px-6 py-2 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                className="hidden sm:block px-6 py-2 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
               >
                 Get started
               </Link>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="sm:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
         </div>
+        
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-100 bg-white">
+            <div className="px-4 py-4 space-y-3">
+              <Link
+                href="/restaurants/ristorante-pizzeria-karalis"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-2 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity text-center font-medium"
+              >
+                Get started
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-4 py-2 text-[#080c24] border border-[#080c24] rounded-lg hover:bg-[#f5f4f1] transition-colors text-center font-medium"
+              >
+                Login
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
