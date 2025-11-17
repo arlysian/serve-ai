@@ -8,6 +8,11 @@ import AnimatedCard from "@/components/AnimatedCard";
 export default function Home() {
   const [email, setEmail] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [pricingEmail, setPricingEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // Feature flag: Uncomment the line below to enable the ordering feature
   // const ENABLE_ORDERING_FEATURE = true;
@@ -15,6 +20,46 @@ export default function Home() {
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
+  };
+
+  const handlePricingFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/pricing-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName,
+          email: pricingEmail,
+          phone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit request');
+      }
+
+      setSubmitSuccess(true);
+      setCompanyName('');
+      setPricingEmail('');
+      setPhone('');
+      
+      // Reset success message after 5 seconds
+      setTimeout(() => {
+        setSubmitSuccess(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error submitting pricing request:', error);
+      alert('Failed to submit your request. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -259,9 +304,12 @@ export default function Home() {
                 <p className="text-gray-600 mb-6 text-lg">
                   We create the first menu for you, according to your needs. Later you can edit the menu items yourself.
                 </p>
-                <button className="px-6 py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium">
-                  Learn more
-                </button>
+                <Link
+                  href="/restaurants/ristorante-pizzeria-karalis"
+                  className="inline-block px-6 py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+                >
+                  View Example
+                </Link>
               </div>
             </div>
           </div>
@@ -337,157 +385,93 @@ export default function Home() {
       <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-sm uppercase tracking-wider text-gray-500 mb-2">PLANS & PRICING</p>
+            <p className="text-sm uppercase tracking-wider text-gray-500 mb-2">PRICING</p>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Flexible plans for every restaurant
+              Flexible pricing for every restaurant
             </h2>
             <p className="text-xl text-gray-600">
-              Select a plan to digitize your menu and add AI-powered service.
+              Get a customized quote tailored to your restaurant&apos;s needs.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Basic Plan */}
+          <div className="max-w-2xl mx-auto">
             <AnimatedCard direction="up" delay={0}>
-              <div className="bg-[#f5f4f1] rounded-xl p-8 border border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Basic</h3>
-                <p className="text-gray-600 mb-6">Essential digital menu features.</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-gray-900">€30</span>
-                  <span className="text-gray-600">/restaurant</span>
+              <div className="bg-[#f5f4f1] rounded-xl p-8 md:p-12 border border-gray-200">
+                <div className="text-center mb-8">
+                  <div className="w-20 h-20 bg-[#080c24] rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-900 mb-4">Contact us for pricing</h3>
+                  <p className="text-lg text-gray-600">
+                    Fill out the form below and we&apos;ll get back to you with a customized quote for your restaurant.
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500 mb-6">or €300 yearly</p>
-                <button className="w-full py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium mb-8">
-                  Start
-                </button>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 mb-4">INCLUDES:</p>
-                  <ul className="space-y-3">
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Unlimited menu items
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      QR code generation
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Basic analytics
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </AnimatedCard>
 
-            {/* Business Plan */}
-            <AnimatedCard direction="up" delay={100}>
-              <div className="bg-[#f5f4f1] rounded-xl p-8 border-2 border-[#080c24] relative">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-[#080c24] text-white px-4 py-1 rounded-full text-sm font-medium">
-                  Popular
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Business</h3>
-                <p className="text-gray-600 mb-6">AI waitress and advanced tools.</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-gray-900">€35</span>
-                  <span className="text-gray-600">/restaurant</span>
-                </div>
-                <p className="text-sm text-gray-500 mb-6">or €350 yearly</p>
-                <button className="w-full py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium mb-8">
-                  Start
-                </button>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 mb-4">EVERYTHING IN BASIC PLUS:</p>
-                  <ul className="space-y-3">
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Everything in Basic
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      AI order assistant
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Custom branding
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Priority support
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Menu translations
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </AnimatedCard>
+                {submitSuccess ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                    <svg className="w-12 h-12 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h4 className="text-xl font-bold text-green-900 mb-2">Thank you!</h4>
+                    <p className="text-green-700">We&apos;ve received your request and will contact you soon.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handlePricingFormSubmit} className="space-y-6">
+                    <div>
+                      <label htmlFor="companyName" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Company Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id="companyName"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Your restaurant name"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#080c24] focus:border-transparent placeholder:text-gray-400 text-gray-900 bg-white"
+                      />
+                    </div>
 
-            {/* Enterprise Plan */}
-            <AnimatedCard direction="up" delay={200}>
-              <div className="bg-[#f5f4f1] rounded-xl p-8 border border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Enterprise</h3>
-                <p className="text-gray-600 mb-6">Full customization and integrations.</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-gray-900">€40</span>
-                  <span className="text-gray-600">/restaurant</span>
-                </div>
-                <p className="text-sm text-gray-500 mb-6">or €400 yearly</p>
-                <button className="w-full py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium mb-8">
-                  Start
-                </button>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 mb-4">EVERYTHING IN BUSINESS PLUS:</p>
-                  <ul className="space-y-3">
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Everything in Business
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Custom integrations
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Dedicated account manager
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Advanced reporting
-                    </li>
-                    <li className="flex items-center text-gray-600">
-                      <svg className="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                      Onboarding support
-                    </li>
-                  </ul>
-                </div>
+                    <div>
+                      <label htmlFor="pricingEmail" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        id="pricingEmail"
+                        value={pricingEmail}
+                        onChange={(e) => setPricingEmail(e.target.value)}
+                        placeholder="your.email@example.com"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#080c24] focus:border-transparent placeholder:text-gray-400 text-gray-900 bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="phone" className="block text-sm font-semibold text-gray-900 mb-2">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+1 (555) 123-4567"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#080c24] focus:border-transparent placeholder:text-gray-400 text-gray-900 bg-white"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Request Pricing'}
+                    </button>
+                  </form>
+                )}
               </div>
             </AnimatedCard>
           </div>
@@ -667,8 +651,8 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Email</h3>
               <p className="text-gray-600 mb-2">Message us for menu setup.</p>
-              <a href="mailto:serveai.info@gmail.com" className="text-[#080c24] hover:underline">
-                serveai.info@gmail.com
+              <a href="mailto:info@serveai.net" className="text-[#080c24] hover:underline">
+                info@serveai.net
               </a>
             </div>
 
@@ -694,7 +678,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 mb-8">
             <div>
               <h3 className="text-2xl font-bold mb-4">Smarter menus, seamless dining</h3>
-              <p className="text-gray-300 text-lg mb-2">serveai.info@gmail.com</p>
+              <p className="text-gray-300 text-lg mb-2">info@serveai.net</p>
               <p className="text-gray-300">AI-powered QR menus for restaurants.</p>
             </div>
             <div className="grid grid-cols-2 gap-8">
