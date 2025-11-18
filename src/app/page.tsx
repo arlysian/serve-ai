@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import AnimatedCard from "@/components/AnimatedCard";
 
 export default function Home() {
@@ -14,6 +15,23 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
+
+  // Check if there's an invite token in the URL hash and redirect to setup-password
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.substring(1);
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      
+      // If there's an invite or recovery token, redirect to setup-password
+      if (accessToken && (type === 'invite' || type === 'recovery')) {
+        // Preserve the hash when redirecting
+        router.push(`/setup-password${window.location.hash}`);
+      }
+    }
+  }, [router]);
 
   // Feature flag: Uncomment the line below to enable the ordering feature
   // const ENABLE_ORDERING_FEATURE = true;
