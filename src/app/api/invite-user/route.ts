@@ -54,7 +54,9 @@ export async function POST(req: Request) {
     }
 
     // Generate invite link for new users (better for password setup)
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    // Use serveai.net as default in production, localhost for development
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+      (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
       email: email,

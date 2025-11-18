@@ -10,7 +10,9 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/auth/forgot-password?error=invalid_token', req.url));
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    // Use serveai.net as default in production, localhost for development
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+      (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
     
     // Exchange the token with Supabase's verify endpoint
     // Supabase will redirect back with the access_token in the hash
