@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
+import { getTranslation, type Language } from "@/lib/translations";
 
 interface MenuItem {
   id: string;
@@ -87,6 +88,9 @@ export default function RestaurantMenu() {
   const [chatClosing, setChatClosing] = useState(false);
   const [selectedLangIndex, setSelectedLangIndex] = useState(0);
   const [backdropVisible, setBackdropVisible] = useState(false);
+  
+  // Get current language: 0 = English (en), 1 = Dutch (nl)
+  const currentLang: Language = selectedLangIndex === 0 ? 'en' : 'nl';
   const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
   const [dishPosition, setDishPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const [dishClosing, setDishClosing] = useState(false);
@@ -1023,7 +1027,7 @@ export default function RestaurantMenu() {
           <input
             ref={floatingInputRef}
             type="text"
-            placeholder="Ask anything"
+            placeholder={getTranslation(currentLang, 'askAnything')}
             maxLength={800}
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4"
           />
@@ -1226,7 +1230,7 @@ export default function RestaurantMenu() {
           >
             {/* Chat Header */}
             <div className="px-4 py-1 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900">AI Menu Assistant</h3>
+              <h3 className="text-base font-semibold text-gray-900">{getTranslation(currentLang, 'aiMenuAssistant')}</h3>
               <button 
                 onClick={handleCloseChat}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
@@ -1241,9 +1245,9 @@ export default function RestaurantMenu() {
             <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
               {chatHistory.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
-                  <p>Ask me anything about the menu!</p>
+                  <p>{getTranslation(currentLang, 'askMeAnything')}</p>
                   <p className="text-sm mt-2">
-                    Try: &quot;What&apos;s good for vegetarians?&quot; or &quot;What do you recommend?&quot;
+                    {getTranslation(currentLang, 'tryExamples')}
                   </p>
                 </div>
               )}
@@ -1381,7 +1385,7 @@ export default function RestaurantMenu() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
-                  <span>Ask AI about this</span>
+                  <span>{getTranslation(currentLang, 'askAiAboutThis')}</span>
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, PostgrestSingleResponse } from "@supabase/supabase-js";
 import OpenAI from "openai";
+import { verify } from "../../../lib/sign";
 import {
   getOrCreateSession,
   loadMemory,
@@ -20,6 +21,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+
 // --- 2. TYPES ---
 interface MenuItem {
   name: string;
@@ -37,6 +39,22 @@ interface MenuSection {
 interface Restaurant {
   name: string;
 }
+
+//PARSE COOKIE HELPER
+function parseCookie(str?: string | null) {
+  if (!str) return {};
+  return Object.fromEntries(
+    str.split(";").map(v => {
+      const [k, val] = v.trim().split("=");
+      return [k, val];
+    })
+  );
+}
+
+function unauthorized() {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
 
 // --- FILTER HELPER ---
 const filterMenuByAllergens = (
@@ -69,6 +87,18 @@ const compressMenu = (sections: MenuSection[]) =>
 
 // --- 3. HANDLER ---
 export async function POST(req: Request) {
+  
+  const cookieHeader = req.headers.get("cookie");
+  const cookies = parseCookie(cookieHeader);
+  const sess = cookies["sess"];
+
+  if (!sess) return unauthorized();
+
+  const [id, sig] = sess.split(".");
+  if (!id || !sig || !(await verify(id, sig))) {
+    return unauthorized();
+  }
+
   try {
     const body = await req.json() as {
       restaurant_id?: string;
