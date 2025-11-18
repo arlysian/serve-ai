@@ -43,12 +43,16 @@ interface Restaurant {
 //PARSE COOKIE HELPER
 function parseCookie(str?: string | null) {
   if (!str) return {};
-  return Object.fromEntries(
-    str.split(";").map(v => {
-      const [k, val] = v.trim().split("=");
-      return [k, val];
-    })
-  );
+  try {
+    return Object.fromEntries(
+      str.split(";").map(v => {
+        const [k, val] = v.trim().split("=");
+        return [k, val || ""];
+      })
+    );
+  } catch {
+    return {};
+  }
 }
 
 function unauthorized() {
@@ -130,18 +134,25 @@ export async function POST(req: Request) {
       req.headers.get("x-real-ip") ||
       "unknown-ip";
 
+    // 6 requests per minute per session
     const sessionLimited = !(await checkRateLimit(
       `session:${sessionIdentifier}`,
-      10,
+      6,
       60 * 1000
     ));
+    // 30 requests per minute per IP
     const ipLimited = !(await checkRateLimit(
       `ip:${ipAddress}`,
       30,
       60 * 1000
     ));
-
-    if (sessionLimited || ipLimited) {
+    // 300 requests per day per IP
+    const ipDailyLimited = !(await checkRateLimit(
+      `ip-daily:${ipAddress}`,
+      300,
+      24 * 60 * 60 * 1000
+    ));
+    if (sessionLimited || ipLimited || ipDailyLimited) {
       return NextResponse.json(
         { error: "Too many requests. Please wait a moment before trying again.", retryAfter: 60 },
         { status: 429, headers: { "Retry-After": "60" } }
