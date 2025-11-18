@@ -10,16 +10,21 @@ import { getTranslation, type Language } from "@/lib/translations";
 interface MenuItem {
   id: string;
   name: string;
+  // Note: menu_items table doesn't have name_native, only menu_sections does
   description?: string;
+  description_native?: string;
   price: number;
   image_url?: string;
   allergens?: string[];
+  allergens_native?: string[];
   tags?: string[];
+  tags_native?: string[];
 }
 
 interface MenuSection {
   id: string;
   name: string;
+  name_native?: string;
   items: MenuItem[];
 }
 
@@ -91,6 +96,30 @@ export default function RestaurantMenu() {
   
   // Get current language: 0 = English (en), 1 = Dutch (nl)
   const currentLang: Language = selectedLangIndex === 0 ? 'en' : 'nl';
+  const isEnglish = selectedLangIndex === 0;
+  
+  // Helper functions to get the correct field based on language
+  const getSectionName = (section: MenuSection): string => {
+    return isEnglish ? section.name : (section.name_native || section.name);
+  };
+  
+  const getItemName = (item: MenuItem): string => {
+    // menu_items table doesn't have name_native, so always use name
+    return item.name;
+  };
+  
+  const getItemDescription = (item: MenuItem): string | undefined => {
+    return isEnglish ? item.description : (item.description_native || item.description);
+  };
+  
+  const getItemAllergens = (item: MenuItem): string[] | undefined => {
+    return isEnglish ? item.allergens : (item.allergens_native || item.allergens);
+  };
+  
+  const getItemTags = (item: MenuItem): string[] | undefined => {
+    return isEnglish ? item.tags : (item.tags_native || item.tags);
+  };
+  
   const [selectedDish, setSelectedDish] = useState<MenuItem | null>(null);
   const [dishPosition, setDishPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const [dishClosing, setDishClosing] = useState(false);
@@ -484,9 +513,12 @@ export default function RestaurantMenu() {
                 // Parse AI response to find mentioned dishes using component's data
                 if (fullResponse && data?.sections) {
                   const mentionedDishIds = new Set<string>();
+                  const lowerResponse = fullResponse.toLowerCase();
                   data.sections.forEach((section: MenuSection) => {
                     section.items.forEach((item: MenuItem) => {
-                      if (fullResponse.toLowerCase().includes(item.name.toLowerCase())) {
+                      // menu_items only have name (no name_native)
+                      const itemName = item.name.toLowerCase();
+                      if (lowerResponse.includes(itemName)) {
                         mentionedDishIds.add(item.id);
                       }
                     });
@@ -863,7 +895,7 @@ export default function RestaurantMenu() {
                   : "bg-transparent text-gray-700 hover:bg-gray-100/50 transition-all duration-300"
               }`}
           >
-            {section.name}
+            {getSectionName(section)}
           </button>
         ))}
       </div>
@@ -885,7 +917,7 @@ export default function RestaurantMenu() {
                 );
                 // Remove duplicates by name (in case same dish appears in multiple sections)
                 const uniqueItems = Array.from(
-                  new Map(allHighlightedItems.map(item => [item.name.toLowerCase(), item])).values()
+                  new Map(allHighlightedItems.map(item => [getItemName(item).toLowerCase(), item])).values()
                 );
                 return uniqueItems.map((item) => (
                   <motion.div 
@@ -903,14 +935,14 @@ export default function RestaurantMenu() {
                       {item.image_url ? (
                         <img
                           src={item.image_url}
-                          alt={item.name}
+                          alt={getItemName(item)}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
                           <span className="text-white font-bold text-lg">
-                            {item.name.charAt(0)}
+                            {getItemName(item).charAt(0)}
                           </span>
                         </div>
                       )}
@@ -919,15 +951,15 @@ export default function RestaurantMenu() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-semibold text-gray-900 text-lg">
-                          {item.name}
+                          {getItemName(item)}
                         </h4>
                         <span className="font-bold text-lg text-gray-900 pl-2">
                           €{item.price.toFixed(2)}
                         </span>
                       </div>
                     
-                      {item.description && (
-                        <p className="text-gray-600 text-sm mb-2">{truncate(item.description, 70)}</p>
+                      {getItemDescription(item) && (
+                        <p className="text-gray-600 text-sm mb-2">{truncate(getItemDescription(item)!, 70)}</p>
                       )}
                     </div>
                   </div>
@@ -940,7 +972,7 @@ export default function RestaurantMenu() {
 
         {data.sections.map((section) => (
           <div key={section.id} id={`section-${section.id}`} data-section-id={section.id} className="mb-8 scroll-mt-32">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">{section.name}</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">{getSectionName(section)}</h3>
             {visibleSections.has(section.id) ? (
               <div className="space-y-4">
                 {section.items.map((item) => (
@@ -961,14 +993,14 @@ export default function RestaurantMenu() {
               {item.image_url ? (
                 <img
                   src={item.image_url}
-                  alt={item.name}
+                  alt={getItemName(item)}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
               ) : (
                         <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
                           <span className="text-white font-bold text-lg">
-                            {item.name.charAt(0)}
+                            {getItemName(item).charAt(0)}
                           </span>
                         </div>
                       )}
@@ -977,15 +1009,15 @@ export default function RestaurantMenu() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-semibold text-gray-900 text-lg">
-                          {item.name}
+                          {getItemName(item)}
                         </h4>
                         <span className="font-bold text-lg text-gray-900 pl-2">
                           €{item.price.toFixed(2)}
                         </span>
                       </div>
                     
-                      {item.description && (
-                        <p className="text-gray-600 text-sm mb-2">{truncate(item.description, 70)}</p>
+                      {getItemDescription(item) && (
+                        <p className="text-gray-600 text-sm mb-2">{truncate(getItemDescription(item)!, 70)}</p>
                       )}
                     </div>
                   </div>
@@ -1342,23 +1374,23 @@ export default function RestaurantMenu() {
               {/* Dish Details */}
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-3xl font-bold text-gray-900">{selectedDish.name}</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{getItemName(selectedDish)}</h2>
                   <span className="text-2xl font-bold text-black px-4">€{selectedDish.price.toFixed(2)}</span>
                 </div>
                 
-                {selectedDish.description && (
-                  <p className="text-gray-600 text-lg mb-6">{selectedDish.description}</p>
+                {getItemDescription(selectedDish) && (
+                  <p className="text-gray-600 text-lg mb-6">{getItemDescription(selectedDish)}</p>
                 )}
 
                 {/* Tags and Allergens */}
-                {(selectedDish.tags || selectedDish.allergens) && (
+                {(getItemTags(selectedDish) || getItemAllergens(selectedDish)) && (
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {selectedDish.tags?.map((tag, index) => (
+                    {getItemTags(selectedDish)?.map((tag, index) => (
                       <span key={index} className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
                         {tag.charAt(0).toUpperCase() + tag.slice(1)}
                       </span>
                     ))}
-                    {selectedDish.allergens?.map((allergen, index) => (
+                    {getItemAllergens(selectedDish)?.map((allergen, index) => (
                       <span key={index} className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full">
                         {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
                       </span>
@@ -1375,7 +1407,7 @@ export default function RestaurantMenu() {
                     setTimeout(() => {
                       setBackdropVisible(true);
                       if (chatInputRef.current) {
-                        chatInputRef.current.value = `Tell me more about ${selectedDish.name}`;
+                        chatInputRef.current.value = `Tell me more about ${getItemName(selectedDish)}`;
                         chatInputRef.current.focus();
                       }
                     }, 10);

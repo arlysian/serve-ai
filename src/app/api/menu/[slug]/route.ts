@@ -21,10 +21,10 @@ export async function GET(
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
 
-    // 2. Get menu sections
+    // 2. Get menu sections (fetch both English and native columns)
     const { data: sections, error: sectionsError } = await supabase
       .from("menu_sections")
-      .select("id, name, position")
+      .select("id, name, name_native, position")
       .eq("restaurant_id", restaurant.id)
       .order("position");
 
@@ -32,7 +32,8 @@ export async function GET(
       return NextResponse.json({ error: "Failed to load menu sections" }, { status: 500 });
     }
 
-    // 3. Get menu items
+    // 3. Get menu items (fetch both English and native columns)
+    // Note: menu_items only has description_native, allergens_native, tags_native (no name_native)
     const sectionIds = sections?.map((s) => s.id) || [];
     const { data: items, error: itemsError } = await supabase
       .from("menu_items")
