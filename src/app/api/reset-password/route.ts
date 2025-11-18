@@ -28,35 +28,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // First, create the user (or get existing user)
-    let user;
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers.users.find(u => u.email === email);
+    // Check if user exists
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    const user = users.find(u => u.email === email);
 
-    if (existingUser) {
-      user = existingUser;
-    } else {
-      // Create a new user without a password
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true, // Auto-confirm email
-        // Don't set a password - they'll set it via the reset link
-      });
-
-      if (createError) {
-        console.error("Error creating user:", createError);
-        return NextResponse.json(
-          { error: createError.message || "Failed to create user" },
-          { status: 500 }
-        );
-      }
-      user = newUser.user;
+    if (!user) {
+      // Don't reveal if user exists or not (security best practice)
+      // Still return success to prevent email enumeration
+      return NextResponse.json(
+        { 
+          success: true, 
+          message: "If an account exists with this email, a password reset link has been sent." 
+        },
+        { status: 200 }
+      );
     }
 
-    // Generate invite link for new users (better for password setup)
+    // Generate password reset link using Supabase
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
+      type: 'recovery',
       email: email,
       options: {
         redirectTo: `${siteUrl}/auth/setup-password`,
@@ -66,25 +57,42 @@ export async function POST(req: Request) {
     if (linkError) {
       console.error("Error generating password reset link:", linkError);
       return NextResponse.json(
-        { error: linkError.message || "Failed to generate password setup link" },
+        { error: linkError.message || "Failed to generate password reset link" },
         { status: 500 }
       );
     }
 
-    // The link is in linkData.properties.action_link
-    const setupLink = linkData.properties?.action_link;
+    // Extract the token from Supabase's link to create our custom link
+    const supabaseLink = linkData.properties?.action_link;
+    let resetLink = supabaseLink;
+    
+    // If we got a Supabase link, extract the token and create a custom link
+    if (supabaseLink) {
+      try {
+        const url = new URL(supabaseLink);
+        const token = url.searchParams.get('token');
+        const type = url.searchParams.get('type');
+        
+        if (token) {
+          // Create a clean custom link using our domain
+          resetLink = `${siteUrl}/auth/reset-password?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
+        }
+      } catch (e) {
+        // If parsing fails, use the original Supabase link
+        console.warn("Could not parse Supabase link, using original:", e);
+      }
+    }
 
-    if (!setupLink) {
+    if (!resetLink) {
       return NextResponse.json(
-        { error: "Failed to generate setup link" },
+        { error: "Failed to generate reset link" },
         { status: 500 }
       );
     }
 
-
-    // Send email with the password setup link
+    // Send email with the password reset link
     try {
-      // Create email transporter (using same config as pricing requests)
+      // Create email transporter (using same config as invite emails)
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.gmail.com",
         port: parseInt(process.env.SMTP_PORT || "587"),
@@ -99,77 +107,84 @@ export async function POST(req: Request) {
         from: process.env.SMTP_FROM || "ServeAI <info@serveai.net>",
         to: email,
         replyTo: "info@serveai.net",
-        subject: "Set up your ServeAI account password",
+        subject: "Reset your ServeAI account password",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #080c24; margin-bottom: 10px;">Welcome to ServeAI</h1>
-              <p style="color: #666; font-size: 16px;">Your account has been created!</p>
+              <h1 style="color: #080c24; margin-bottom: 10px;">Reset Your Password</h1>
+              <p style="color: #666; font-size: 16px;">We received a request to reset your password</p>
             </div>
             
             <div style="background-color: #f5f4f1; padding: 30px; border-radius: 8px; margin-bottom: 30px;">
               <p style="color: #333; font-size: 16px; margin-bottom: 20px;">
-                Thank you for choosing ServeAI! To get started, please set up your password by clicking the button below:
+                Click the button below to reset your password. If you didn't request this, you can safely ignore this email.
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${setupLink}" 
+                <a href="${resetLink}" 
                    style="display: inline-block; padding: 14px 32px; background-color: #080c24; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Set Up Password
+                  Reset Password
                 </a>
               </div>
               
               <p style="color: #666; font-size: 14px; margin-top: 20px;">
                 Or copy and paste this link into your browser:<br>
-                <a href="${setupLink}" style="color: #080c24; word-break: break-all;">${setupLink}</a>
+                <a href="${resetLink}" style="color: #080c24; word-break: break-all;">${resetLink}</a>
               </p>
             </div>
             
             <div style="border-top: 1px solid #e5e5e5; padding-top: 20px; text-align: center;">
               <p style="color: #999; font-size: 12px; margin: 0;">
-                This link will expire in 24 hours. If you didn't request this, please contact us at 
+                This link will expire in 1 hour. If you didn't request this, please contact us at 
                 <a href="mailto:info@serveai.net" style="color: #080c24;">info@serveai.net</a>
               </p>
             </div>
           </div>
         `,
         text: `
-Welcome to ServeAI
+Reset Your Password
 
-Your account has been created! To get started, please set up your password by visiting this link:
+We received a request to reset your password. Click the link below to reset it:
 
-${setupLink}
+${resetLink}
 
-This link will expire in 24 hours. If you didn't request this, please contact us at info@serveai.net
+This link will expire in 1 hour. If you didn't request this, please contact us at info@serveai.net
         `,
       };
 
       await transporter.sendMail(mailOptions);
-    } catch (emailError) {
+    } catch (emailError: any) {
       console.error("Error sending email:", emailError);
-      // Still return success with the link, so you can send it manually if needed
+      
+      // Provide more helpful error message for authentication errors
+      if (emailError.code === 'EAUTH') {
+        console.error("SMTP Authentication failed. Make sure you're using an App Password, not your regular Gmail password.");
+        return NextResponse.json(
+          { 
+            error: "Email configuration error. Please contact support." 
+          },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         { 
-          success: true, 
-          message: "User created and link generated, but email failed to send",
-          setupLink: setupLink, // Include link in case email fails
-          user: user,
-          warning: "Please send the setup link manually via email"
+          error: "Failed to send password reset email. Please try again later." 
         },
-        { status: 200 }
+        { status: 500 }
       );
     }
 
+    // Return success (don't reveal if user exists)
     return NextResponse.json(
       { 
         success: true, 
-        message: "Password setup email sent successfully",
-        user: user
+        message: "If an account exists with this email, a password reset link has been sent." 
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in invite-user API:", error);
+    console.error("Error in reset-password API:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

@@ -28,7 +28,7 @@ export default function Home() {
       // If there's an invite or recovery token, redirect to setup-password
       if (accessToken && (type === 'invite' || type === 'recovery')) {
         // Preserve the hash when redirecting
-        router.push(`/setup-password${window.location.hash}`);
+        router.push(`/auth/setup-password${window.location.hash}`);
       }
     }
   }, [router]);
@@ -103,7 +103,7 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
-                href="/login"
+                href="/auth/login"
                 className="hidden sm:block px-6 py-2 text-[#080c24] border border-[#080c24] rounded-lg hover:bg-[#f5f4f1] transition-colors text-sm font-medium"
               >
                 Login
@@ -145,7 +145,7 @@ export default function Home() {
                 Get started
               </Link>
               <Link
-                href="/login"
+                href="/auth/login"
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-4 py-2 text-[#080c24] border border-[#080c24] rounded-lg hover:bg-[#f5f4f1] transition-colors text-center font-medium"
               >

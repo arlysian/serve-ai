@@ -129,10 +129,6 @@ export default function SetupPasswordPage() {
     }
 
     try {
-      // Get the access token from the current session to mark it as used
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
       // Update the password
       const { error: updateError } = await supabase.auth.updateUser({
         password: password,
@@ -144,10 +140,9 @@ export default function SetupPasswordPage() {
         return;
       }
 
-
       setSuccess(true);
       setTimeout(() => {
-        router.push('/login');
+        router.push('/auth/login');
       }, 2000);
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -266,7 +261,7 @@ export default function SetupPasswordPage() {
 
           <div className="text-center text-xs sm:text-sm text-gray-600 px-2">
             Already have a password?{' '}
-            <Link href="/login" className="font-medium text-[#080c24] hover:opacity-80">
+            <Link href="/auth/login" className="font-medium text-[#080c24] hover:opacity-80">
               Sign in
             </Link>
           </div>

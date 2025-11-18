@@ -17,7 +17,7 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.push('/login');
+        router.push('/auth/login');
         return;
       }
 
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        router.push('/login');
+        router.push('/auth/login');
       } else {
         setUser(session.user);
       }
