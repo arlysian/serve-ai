@@ -1,16 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
+import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +41,7 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccess(true);
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
@@ -55,7 +53,7 @@ export default function ForgotPasswordPage() {
         <div className="max-w-md w-full space-y-6 sm:space-y-8">
           <div className="text-center">
             <Link href="/" className="flex justify-center items-center mb-4 sm:mb-6">
-              <img
+              <Image
                 src="/Backgroundless_ServeAI_logo.svg"
                 alt="ServeAI Logo"
                 width={48}
@@ -72,7 +70,7 @@ export default function ForgotPasswordPage() {
               </svg>
               <h2 className="text-xl font-bold text-green-900 mb-2">Check your email</h2>
               <p className="text-green-700 mb-4">
-                We've sent a password reset link to <strong>{email}</strong>
+                We&apos;ve sent a password reset link to <strong>{email}</strong>
               </p>
               <p className="text-sm text-green-600">
                 Click the link in the email to reset your password. The link will expire in 1 hour.
@@ -98,7 +96,7 @@ export default function ForgotPasswordPage() {
         {/* Logo and Header */}
         <div className="text-center">
           <Link href="/" className="flex justify-center items-center mb-4 sm:mb-6">
-            <img
+            <Image
               src="/Backgroundless_ServeAI_logo.svg"
               alt="ServeAI Logo"
               width={48}
@@ -113,7 +111,7 @@ export default function ForgotPasswordPage() {
             Reset your password
           </h2>
           <p className="text-sm sm:text-base text-gray-600 px-2">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we&apos;ll send you a link to reset your password
           </p>
         </div>
 

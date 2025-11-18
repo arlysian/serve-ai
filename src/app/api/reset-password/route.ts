@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     // Check if user exists
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
     const user = users.find(u => u.email === email);
 
     if (!user) {
@@ -153,11 +153,11 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
       };
 
       await transporter.sendMail(mailOptions);
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
       console.error("Error sending email:", emailError);
       
       // Provide more helpful error message for authentication errors
-      if (emailError.code === 'EAUTH') {
+      if (emailError && typeof emailError === 'object' && 'code' in emailError && (emailError as { code?: string }).code === 'EAUTH') {
         console.error("SMTP Authentication failed. Make sure you're using an App Password, not your regular Gmail password.");
         return NextResponse.json(
           { 
