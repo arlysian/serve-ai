@@ -28,53 +28,112 @@ export async function POST(req: Request) {
       );
     }
 
-    // First, create the user (or get existing user)
+    // Try to create the user first (or get existing user)
     let user;
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers.users.find(u => u.email === email);
+    
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true, // Auto-confirm email
+      // Don't set a password - they'll set it via the reset link
+    });
 
-    if (existingUser) {
-      user = existingUser;
-    } else {
-      // Create a new user without a password
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true, // Auto-confirm email
-        // Don't set a password - they'll set it via the reset link
-      });
-
-      if (createError) {
+    if (createError) {
+      // If user already exists, try to find them with pagination
+      if (createError.message?.includes('already registered') || createError.message?.includes('already exists')) {
+        // User exists, find them efficiently with pagination
+        let foundUser = null;
+        let page = 1;
+        const pageSize = 1000;
+        
+        while (!foundUser && page <= 10) { // Limit to 10 pages to prevent infinite loops
+          const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+            page,
+            perPage: pageSize
+          });
+          
+          if (listError) {
+            console.error("Error listing users:", listError);
+            return NextResponse.json(
+              { error: "Failed to find existing user" },
+              { status: 500 }
+            );
+          }
+          
+          // Case-insensitive email match
+          foundUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+          
+          // If found or no more pages, break
+          if (foundUser || users.length < pageSize) {
+            break;
+          }
+          
+          page++;
+        }
+        
+        if (!foundUser) {
+          return NextResponse.json(
+            { error: "User exists but could not be retrieved" },
+            { status: 500 }
+          );
+        }
+        
+        user = foundUser;
+      } else {
+        // Other error creating user
         console.error("Error creating user:", createError);
         return NextResponse.json(
           { error: createError.message || "Failed to create user" },
           { status: 500 }
         );
       }
+    } else {
+      // User created successfully
       user = newUser.user;
     }
 
-    // Generate invite link for new users (better for password setup)
+    // Generate invite link for new users
     // Use serveai.net as default in production, localhost for development
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
       (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
+    
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
-      email: email,
+      email: email.toLowerCase(),
       options: {
         redirectTo: `${siteUrl}/auth/setup-password`,
       }
     });
 
     if (linkError) {
-      console.error("Error generating password reset link:", linkError);
+      console.error("Error generating invite link:", linkError);
       return NextResponse.json(
-        { error: linkError.message || "Failed to generate password setup link" },
+        { error: linkError.message || "Failed to generate invite link" },
         { status: 500 }
       );
     }
 
-    // The link is in linkData.properties.action_link
-    const setupLink = linkData.properties?.action_link;
+    // Extract the token from Supabase's link to create our custom clean link
+    const supabaseLink = linkData.properties?.action_link;
+    let setupLink = supabaseLink;
+    
+    // If we got a Supabase link, extract the token and create a custom clean link
+    if (supabaseLink) {
+      try {
+        const url = new URL(supabaseLink);
+        const token = url.searchParams.get('token');
+        const type = url.searchParams.get('type');
+        const redirectTo = url.searchParams.get('redirect_to');
+        
+        if (token) {
+          // Create a clean custom link using our domain
+          // The token will be verified by our API route, then redirect to setup page
+          setupLink = `${siteUrl}/api/verify-invite?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
+        }
+      } catch (e) {
+        // If parsing fails, use the original Supabase link
+        console.warn("Could not parse Supabase link, using original:", e);
+      }
+    }
 
     if (!setupLink) {
       return NextResponse.json(
@@ -83,10 +142,9 @@ export async function POST(req: Request) {
       );
     }
 
-
-    // Send email with the password setup link
+    // Send email with the clean custom link
     try {
-      // Create email transporter (using same config as pricing requests)
+      // Create email transporter using Google Workspace SMTP
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.gmail.com",
         port: parseInt(process.env.SMTP_PORT || "587"),
@@ -122,8 +180,8 @@ export async function POST(req: Request) {
               </div>
               
               <p style="color: #666; font-size: 14px; margin-top: 20px;">
-                Or copy and paste this link into your browser:<br>
-                <a href="${setupLink}" style="color: #080c24; word-break: break-all;">${setupLink}</a>
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <a href="${setupLink}" style="color: #080c24; word-break: break-all; font-size: 12px;">${setupLink}</a>
               </p>
             </div>
             
@@ -178,4 +236,3 @@ This link will expire in 24 hours. If you didn't request this, please contact us
     );
   }
 }
-
