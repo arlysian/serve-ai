@@ -108,8 +108,8 @@ export async function POST(req: Request) {
         const type = url.searchParams.get('type');
         
         if (token) {
-          // Create a clean custom link using our domain
-          resetLink = `${siteUrl}/auth/reset-password?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
+          // Create a clean custom link using our domain (same format as invite links)
+          resetLink = `${siteUrl}/api/verify-invite?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
         }
       } catch (e) {
         // If parsing fails, use the original Supabase link
@@ -190,6 +190,15 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
     } catch (emailError: unknown) {
       console.error("Error sending email:", emailError);
       
+      // Log the full error for debugging
+      if (emailError instanceof Error) {
+        console.error("Email error details:", {
+          message: emailError.message,
+          stack: emailError.stack,
+          name: emailError.name
+        });
+      }
+      
       // Provide more helpful error message for authentication errors
       if (emailError && typeof emailError === 'object' && 'code' in emailError && (emailError as { code?: string }).code === 'EAUTH') {
         console.error("SMTP Authentication failed. Make sure you're using an App Password, not your regular Gmail password.");
@@ -201,9 +210,15 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
         );
       }
       
+      // Return more detailed error for debugging
+      const errorMessage = emailError instanceof Error 
+        ? emailError.message 
+        : "Failed to send password reset email. Please try again later.";
+      
       return NextResponse.json(
         { 
-          error: "Failed to send password reset email. Please try again later." 
+          error: errorMessage,
+          details: emailError instanceof Error ? emailError.message : "Unknown error"
         },
         { status: 500 }
       );
