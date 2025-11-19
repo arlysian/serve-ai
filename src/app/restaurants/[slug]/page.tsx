@@ -86,7 +86,10 @@ export default function RestaurantMenu() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [hasInputText, setHasInputText] = useState(false);
   const [isManualScrolling, setIsManualScrolling] = useState(false);
+  const prevChatLoadingRef = useRef(false);
+  const prevChatHistoryLengthRef = useRef(0);
   const lastChatOpenViaSendRef = useRef<number>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFullHero, setShowFullHero] = useState(true);
@@ -209,15 +212,43 @@ export default function RestaurantMenu() {
     };
   }, [data?.restaurant.hero_video_url]);
 
-  // Auto-scroll chat to bottom when new messages arrive
+  // Auto-scroll chat to bottom only when streaming completes (not during streaming)
   useEffect(() => {
-    if (chatMessagesRef.current) {
+    // Only scroll when streaming completes (chatLoading changes from true to false)
+    if (prevChatLoadingRef.current && !chatLoading && chatMessagesRef.current) {
       chatMessagesRef.current.scrollTo({
         top: chatMessagesRef.current.scrollHeight,
         behavior: 'smooth'
       });
     }
-  }, [chatHistory, chatLoading]);
+    prevChatLoadingRef.current = chatLoading;
+  }, [chatLoading]);
+
+  // Auto-scroll when new user message is added (always, even if streaming is about to start)
+  useEffect(() => {
+    // Scroll if:
+    // 1. History length increased (new message added)
+    // 2. Last message is from user (user just sent a message)
+    if (chatHistory.length > prevChatHistoryLengthRef.current && 
+        chatMessagesRef.current && 
+        chatHistory.length > 0) {
+      const lastMessage = chatHistory[chatHistory.length - 1];
+      if (lastMessage.role === 'user') {
+        // Use requestAnimationFrame and setTimeout to ensure DOM has updated
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (chatMessagesRef.current) {
+              chatMessagesRef.current.scrollTo({
+                top: chatMessagesRef.current.scrollHeight,
+                behavior: 'smooth'
+              });
+            }
+          }, 0);
+        });
+      }
+    }
+    prevChatHistoryLengthRef.current = chatHistory.length;
+  }, [chatHistory.length, chatHistory]);
 
   // Prevent body scrolling on Android when chat is open
   useEffect(() => {
@@ -392,6 +423,18 @@ export default function RestaurantMenu() {
     setChatLoading(true);
     setChatHistory(prev => [...prev, { role: "user", content: message }]);
     
+    // Scroll to show user message immediately
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (chatMessagesRef.current) {
+          chatMessagesRef.current.scrollTo({
+            top: chatMessagesRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }, 50);
+    });
+    
     // Add empty assistant message that we'll update as chunks arrive
     setChatHistory(prev => [...prev, { role: "assistant", content: "" }]);
 
@@ -561,6 +604,8 @@ export default function RestaurantMenu() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (chatLoading) return; // Prevent sending while streaming
+    
     const userMessage = chatInputRef.current?.value || "";
     if (!userMessage.trim()) return;
 
@@ -571,7 +616,7 @@ export default function RestaurantMenu() {
   const handleSendButtonClick = async () => {
     const floatingMessage = floatingInputRef.current?.value || "";
 
-    // If no message: toggle chat with 1s guard after opening via Send
+    // If no message: toggle chat with 1s guard after opening via Send (allow even during streaming)
     if (!floatingMessage.trim()) {
       if (showChat) {
         const now = Date.now();
@@ -587,6 +632,9 @@ export default function RestaurantMenu() {
       return;
     }
 
+    // Prevent sending only when there's text AND streaming is active
+    if (chatLoading) return;
+
     // Ensure chat is open when sending (and mark open time if opened via Send)
     if (!showChat) {
       setChatClosing(false);
@@ -595,6 +643,7 @@ export default function RestaurantMenu() {
       lastChatOpenViaSendRef.current = Date.now();
     }
     floatingInputRef.current!.value = "";
+    setHasInputText(false);
     await sendChatMessage(floatingMessage);
   };
 
@@ -930,23 +979,17 @@ export default function RestaurantMenu() {
                     style={{ transform: 'translateZ(0)' }}
                     onClick={(e) => handleDishClick(item, e)}
                   >
-                    <div className="flex gap-4">
-                    <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                      {item.image_url ? (
+                    <div className={`flex ${item.image_url ? 'gap-4' : ''}`}>
+                    {item.image_url && (
+                      <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
                         <img
                           src={item.image_url}
                           alt={getItemName(item)}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {getItemName(item).charAt(0)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
@@ -988,23 +1031,17 @@ export default function RestaurantMenu() {
                   style={{ transform: 'translateZ(0)' }}
                   onClick={(e) => handleDishClick(item, e)}
                 >
-                  <div className="flex gap-4">
-                    <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-              {item.image_url ? (
-                <img
-                  src={item.image_url}
-                  alt={getItemName(item)}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {getItemName(item).charAt(0)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                  <div className={`flex ${item.image_url ? 'gap-4' : ''}`}>
+                    {item.image_url && (
+                      <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                        <img
+                          src={item.image_url}
+                          alt={getItemName(item)}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
@@ -1061,12 +1098,23 @@ export default function RestaurantMenu() {
             type="text"
             placeholder={getTranslation(currentLang, 'askAnything')}
             maxLength={800}
-            className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4"
+            disabled={chatLoading && hasInputText}
+            onChange={(e) => {
+              setHasInputText(e.target.value.trim().length > 0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !chatLoading) {
+                handleSendButtonClick();
+              }
+            }}
+            className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           
           {/* Microphone Button */}
           <button 
+            disabled={chatLoading}
             onClick={async () => {
+              if (chatLoading) return; // Prevent recording while streaming
               if (isRecording) {
                 // Prevent spam: require 1 second delay after starting recording
                 const timeSinceStart = Date.now() - lastMicClickRef.current;
@@ -1162,6 +1210,7 @@ export default function RestaurantMenu() {
                           // Only fill input if validation passes
                           if (validationData.valid && validationData.text && floatingInputRef.current) {
                             floatingInputRef.current.value = validationData.text;
+                            setHasInputText(validationData.text.trim().length > 0);
                           }
                           // If invalid, silently ignore (don't show hallucinated text)
                         }
@@ -1170,6 +1219,7 @@ export default function RestaurantMenu() {
                         // On validation error, still use the transcription (fail open)
                         if (floatingInputRef.current && transcriptionData.text) {
                           floatingInputRef.current.value = transcriptionData.text.trim();
+                          setHasInputText(transcriptionData.text.trim().length > 0);
                         }
                       }
                     }
@@ -1209,7 +1259,7 @@ export default function RestaurantMenu() {
               isRecording 
                 ? 'bg-blue-700 hover:bg-red-600' 
                 : 'hover:bg-gray-100'
-            }`}
+            } ${chatLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={isRecording ? "Stop recording" : "Voice input"}
           >
             <svg 
@@ -1225,7 +1275,8 @@ export default function RestaurantMenu() {
           {/* Send Button */}
           <button 
             onClick={handleSendButtonClick}
-            className="flex items-center justify-center w-10 h-10 bg-black hover:bg-gray-800 rounded-full transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0"
+            disabled={chatLoading && hasInputText}
+            className="flex items-center justify-center w-10 h-10 bg-black hover:bg-gray-800 rounded-full transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12h12m0 0l-6-6m6 6l-6 6" />
@@ -1363,11 +1414,7 @@ export default function RestaurantMenu() {
                     className="w-auto h-full max-h-[40vh] object-contain mx-auto transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-white font-bold text-6xl">
-                      {selectedDish.name.charAt(0)}
-                    </span>
-                  </div>
+                  <div className="w-full h-full bg-white"></div>
                 )}
               </div>
 
@@ -1406,9 +1453,21 @@ export default function RestaurantMenu() {
                     setShowChat(true);
                     setTimeout(() => {
                       setBackdropVisible(true);
-                      if (chatInputRef.current) {
-                        chatInputRef.current.value = `Tell me more about ${getItemName(selectedDish)}`;
-                        chatInputRef.current.focus();
+                      if (floatingInputRef.current && selectedDish) {
+                        const dishName = getItemName(selectedDish);
+                        const promptText = getTranslation(currentLang, 'tellMeMoreAbout');
+                        const fullText = `${promptText} ${dishName}`;
+                        floatingInputRef.current.value = fullText;
+                        setHasInputText(true);
+                        floatingInputRef.current.setSelectionRange(0, 0);
+                        floatingInputRef.current.focus();
+                        // Ensure cursor stays at beginning after focus
+                        setTimeout(() => {
+                          if (floatingInputRef.current) {
+                            floatingInputRef.current.setSelectionRange(0, 0);
+                            floatingInputRef.current.scrollLeft = 0;
+                          }
+                        }, 0);
                       }
                     }, 10);
                   }}
