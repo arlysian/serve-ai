@@ -91,6 +91,7 @@ export default function RestaurantMenu() {
   const prevChatLoadingRef = useRef(false);
   const prevChatHistoryLengthRef = useRef(0);
   const lastChatOpenViaSendRef = useRef<number>(0);
+  const isUserAtBottomRef = useRef(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFullHero, setShowFullHero] = useState(true);
   const [chatClosing, setChatClosing] = useState(false);
@@ -212,17 +213,24 @@ export default function RestaurantMenu() {
     };
   }, [data?.restaurant.hero_video_url]);
 
-  // Auto-scroll chat to bottom only when streaming completes (not during streaming)
+  // Auto-scroll chat to bottom during streaming and when streaming completes
   useEffect(() => {
-    // Only scroll when streaming completes (chatLoading changes from true to false)
-    if (prevChatLoadingRef.current && !chatLoading && chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTo({
-        top: chatMessagesRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
+    if (chatMessagesRef.current) {
+      // Check if we are currently streaming (and length hasn't changed, meaning it's a content update)
+      // OR if streaming just finished
+      const isStreamingContentUpdate = chatLoading && chatHistory.length === prevChatHistoryLengthRef.current;
+      const isStreamingComplete = prevChatLoadingRef.current && !chatLoading;
+      
+      // Only scroll if user was already at the bottom to avoid interrupting reading
+      if ((isStreamingContentUpdate || isStreamingComplete) && isUserAtBottomRef.current) {
+        chatMessagesRef.current.scrollTo({
+          top: chatMessagesRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }
     prevChatLoadingRef.current = chatLoading;
-  }, [chatLoading]);
+  }, [chatLoading, chatHistory]);
 
   // Auto-scroll when new user message is added (always, even if streaming is about to start)
   useEffect(() => {
@@ -238,6 +246,8 @@ export default function RestaurantMenu() {
         requestAnimationFrame(() => {
           setTimeout(() => {
             if (chatMessagesRef.current) {
+              // User sent a message, force scroll to bottom and lock it there
+              isUserAtBottomRef.current = true;
               chatMessagesRef.current.scrollTo({
                 top: chatMessagesRef.current.scrollHeight,
                 behavior: 'smooth'
@@ -421,6 +431,7 @@ export default function RestaurantMenu() {
     }
     
     setChatLoading(true);
+    isUserAtBottomRef.current = true; // Force snap to bottom on new message
     setChatHistory(prev => [...prev, { role: "user", content: message }]);
     
     // Scroll to show user message immediately
@@ -477,7 +488,7 @@ export default function RestaurantMenu() {
       const characterQueue: string[] = [];
       let isStreamingComplete = false;
       let lastUpdateTime = 0;
-      const CHAR_DELAY = 20; // Delay between characters in ms
+      const CHAR_DELAY = 15; // Delay between characters in ms
 
       if (!reader) {
         throw new Error("No response body");
@@ -1325,7 +1336,16 @@ export default function RestaurantMenu() {
             </div>
             
             {/* Chat Messages - Full window */}
-            <div ref={chatMessagesRef} className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+            <div 
+              ref={chatMessagesRef} 
+              className="flex-1 overflow-y-auto p-4 space-y-4 pb-24"
+              onScroll={(e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                // Consider "at bottom" if within 50px of the bottom
+                const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
+                isUserAtBottomRef.current = isAtBottom;
+              }}
+            >
               {chatHistory.length === 0 && (
                 <div className="text-center text-gray-500 py-8">
                   <p>{getTranslation(currentLang, 'askMeAnything')}</p>
