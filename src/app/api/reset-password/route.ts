@@ -28,19 +28,51 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user exists
-    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-    const user = users.find(u => u.email === email);
+    // Check if user exists in Supabase authentication/users
+    // Search with case-insensitive email matching and handle pagination
+    let user = null;
+    let page = 1;
+    const pageSize = 1000; // Supabase default page size
+    
+    while (!user) {
+      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: pageSize
+      });
+      
+      if (listError) {
+        console.error("Error listing users:", listError);
+        return NextResponse.json(
+          { error: "Failed to verify user account" },
+          { status: 500 }
+        );
+      }
+      
+      // Case-insensitive email match
+      user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      
+      // If no user found and we've reached the last page, break
+      if (!user && users.length < pageSize) {
+        break;
+      }
+      
+      // If user not found and there might be more pages, continue
+      if (!user && users.length === pageSize) {
+        page++;
+        continue;
+      }
+      
+      // User found or no more pages
+      break;
+    }
 
+    // If user doesn't exist, return an error
     if (!user) {
-      // Don't reveal if user exists or not (security best practice)
-      // Still return success to prevent email enumeration
       return NextResponse.json(
         { 
-          success: true, 
-          message: "If an account exists with this email, a password reset link has been sent." 
+          error: "No account found with this email address. Please check your email or contact support if you believe this is an error." 
         },
-        { status: 200 }
+        { status: 404 }
       );
     }
 
@@ -50,7 +82,7 @@ export async function POST(req: Request) {
       (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
-      email: email,
+      email: email.toLowerCase(), // Use lowercase to ensure consistency
       options: {
         redirectTo: `${siteUrl}/auth/setup-password`,
       }
@@ -76,8 +108,8 @@ export async function POST(req: Request) {
         const type = url.searchParams.get('type');
         
         if (token) {
-          // Create a clean custom link using our domain
-          resetLink = `${siteUrl}/auth/reset-password?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
+          // Create a clean custom link using our domain (same format as invite links)
+          resetLink = `${siteUrl}/api/verify-invite?token=${encodeURIComponent(token)}${type ? `&type=${type}` : ''}`;
         }
       } catch (e) {
         // If parsing fails, use the original Supabase link
@@ -158,6 +190,15 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
     } catch (emailError: unknown) {
       console.error("Error sending email:", emailError);
       
+      // Log the full error for debugging
+      if (emailError instanceof Error) {
+        console.error("Email error details:", {
+          message: emailError.message,
+          stack: emailError.stack,
+          name: emailError.name
+        });
+      }
+      
       // Provide more helpful error message for authentication errors
       if (emailError && typeof emailError === 'object' && 'code' in emailError && (emailError as { code?: string }).code === 'EAUTH') {
         console.error("SMTP Authentication failed. Make sure you're using an App Password, not your regular Gmail password.");
@@ -169,19 +210,25 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
         );
       }
       
+      // Return more detailed error for debugging
+      const errorMessage = emailError instanceof Error 
+        ? emailError.message 
+        : "Failed to send password reset email. Please try again later.";
+      
       return NextResponse.json(
         { 
-          error: "Failed to send password reset email. Please try again later." 
+          error: errorMessage,
+          details: emailError instanceof Error ? emailError.message : "Unknown error"
         },
         { status: 500 }
       );
     }
 
-    // Return success (don't reveal if user exists)
+    // Return success
     return NextResponse.json(
       { 
         success: true, 
-        message: "If an account exists with this email, a password reset link has been sent." 
+        message: "Password reset link has been sent to your email address." 
       },
       { status: 200 }
     );

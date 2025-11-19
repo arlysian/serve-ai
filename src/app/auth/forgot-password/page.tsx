@@ -35,7 +35,10 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Failed to send password reset email');
+        // Show the detailed error message from the API
+        const errorMsg = data.error || data.details || 'Failed to send password reset email';
+        console.error('Password reset error:', data);
+        setError(errorMsg);
         setLoading(false);
         return;
       }

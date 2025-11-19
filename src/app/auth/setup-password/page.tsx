@@ -15,12 +15,32 @@ export default function SetupPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Handle Supabase auth callback - tokens come in hash fragments
+    // Handle Supabase auth callback - tokens can come in hash fragments or query strings
     const handleAuthCallback = async () => {
       // First, check if user is already authenticated
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setTokenExchanged(true);
+        return;
+      }
+
+      // Check for error in query string (from our verify-invite API route)
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryError = searchParams.get('error');
+      
+      if (queryError) {
+        // Clear the error from URL
+        window.history.replaceState(null, '', window.location.pathname);
+        
+        if (queryError === 'expired') {
+          setError('This password setup link has expired. Please contact us to request a new link.');
+        } else if (queryError === 'invalid' || queryError === 'verification_failed') {
+          setError('Invalid or expired setup link. Please contact support.');
+        } else if (queryError === 'server_error') {
+          setError('An error occurred while verifying your link. Please try again or contact support.');
+        } else {
+          setError('Invalid setup link. Please use the link sent to your email.');
+        }
         return;
       }
 
