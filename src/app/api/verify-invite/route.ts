@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
+/**
+ * This route redirects to Supabase's verification endpoint with the token,
+ * which will then redirect back to our setup-password page.
+ * This ensures the token is properly verified by Supabase.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -16,27 +15,20 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/auth/setup-password?error=missing_token', req.url));
     }
 
-    // Exchange the token with Supabase
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: token,
-      type: type as 'invite' | 'recovery',
-    });
+    // Get the site URL for redirect
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+      (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-    if (error) {
-      const errorMessage = error.message?.includes('expired') 
-        ? 'expired' 
-        : 'invalid';
-      return NextResponse.redirect(new URL(`/auth/setup-password?error=${errorMessage}`, req.url));
+    if (!supabaseUrl) {
+      return NextResponse.redirect(new URL('/auth/setup-password?error=server_error', req.url));
     }
 
-    if (data?.user) {
-      // Token verified successfully, redirect to setup password page
-      // The user session is now established, so they can set their password
-      return NextResponse.redirect(new URL('/auth/setup-password', req.url));
-    }
-
-    // If we get here, something went wrong
-    return NextResponse.redirect(new URL('/auth/setup-password?error=verification_failed', req.url));
+    // Redirect to Supabase's verify endpoint, which will handle the token verification
+    // and then redirect back to our setup-password page
+    const verifyUrl = `${supabaseUrl}/auth/v1/verify?token=${encodeURIComponent(token)}&type=${type}&redirect_to=${encodeURIComponent(`${siteUrl}/auth/setup-password`)}`;
+    
+    return NextResponse.redirect(verifyUrl);
   } catch (error) {
     console.error('Error in verify-invite:', error);
     return NextResponse.redirect(new URL('/auth/setup-password?error=server_error', req.url));
