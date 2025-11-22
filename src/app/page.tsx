@@ -239,8 +239,8 @@ export default function Home() {
             </h2>
           </div>
 
-          {/* Top row: First 3 cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {/* Features Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatedCard direction="left" delay={0}>
               <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 bg-[#f5f4f1] rounded-lg flex items-center justify-center mb-6">
@@ -301,12 +301,9 @@ export default function Home() {
                 </div>
               </AnimatedCard>
             )}
-          </div>
 
-          {/* Bottom row: Last 2 cards centered */}
-          <div className="flex flex-wrap justify-center gap-6">
             <AnimatedCard direction="right" delay={100}>
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow max-w-sm">
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 bg-[#f5f4f1] rounded-lg flex items-center justify-center mb-6">
                   <svg className="w-6 h-6 text-[#080c24]" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <path d="M5,12a1,1,0,0,0-1,1v8a1,1,0,0,0,2,0V13A1,1,0,0,0,5,12ZM10,2A1,1,0,0,0,9,3V21a1,1,0,0,0,2,0V3A1,1,0,0,0,10,2ZM20,16a1,1,0,0,0-1,1v4a1,1,0,0,0,2,0V17A1,1,0,0,0,20,16ZM15,8a1,1,0,0,0-1,1V21a1,1,0,0,0,2,0V9A1,1,0,0,0,15,8Z"/>
@@ -318,7 +315,7 @@ export default function Home() {
             </AnimatedCard>
 
             <AnimatedCard direction="right" delay={200}>
-              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow max-w-sm">
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="w-12 h-12 bg-[#f5f4f1] rounded-lg flex items-center justify-center mb-6">
                   <svg className="w-6 h-6 text-[#080c24]" viewBox="0 0 48 48" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <path d="M43.8,41.2,33.9,16.3A2.1,2.1,0,0,0,32,15H30a2.1,2.1,0,0,0-1.9,1.3L23.3,28.4a24,24,0,0,1-5.6-4.3c3.4-4,5.9-8.8,6.2-13.1h2A2.1,2.1,0,0,0,28,9.3,2,2,0,0,0,26,7H17.5V4.1A2.1,2.1,0,0,0,15.8,2a2,2,0,0,0-2.3,2V7H6.1A2.1,2.1,0,0,0,4,8.7,2,2,0,0,0,6,11H19.9c-.3,3-2.3,6.7-4.9,10.1a34.1,34.1,0,0,1-3.2-4.9A2.1,2.1,0,0,0,9.6,15a2,2,0,0,0-1.4,2.9,39.1,39.1,0,0,0,4.1,6.2,24,24,0,0,1-7,5A2.2,2.2,0,0,0,4,31.4,2,2,0,0,0,6,33l.8-.2A26.4,26.4,0,0,0,15,27a28.1,28.1,0,0,0,6.8,5.1l-3.6,9.1A2,2,0,0,0,20,44a2.2,2.2,0,0,0,1.9-1.3L25.8,33H36.2l3.9,9.7A2.2,2.2,0,0,0,42,44a2,2,0,0,0,1.8-2.8ZM27.4,29,31,19.9,34.6,29Z"/>
@@ -326,6 +323,18 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Menus in every guest&apos;s language.</h3>
                 <p className="text-gray-600">Offer digital menus and AI support in multiple languages for a welcoming experience.</p>
+              </div>
+            </AnimatedCard>
+
+            <AnimatedCard direction="right" delay={300}>
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 bg-[#f5f4f1] rounded-lg flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-[#080c24]" viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Fast onboarding process.</h3>
+                <p className="text-gray-600">We handle the initial menu setup so you can start serving smarter in no time. No technical knowledge required.</p>
               </div>
             </AnimatedCard>
           </div>
@@ -578,7 +587,7 @@ export default function Home() {
       </section>
 
       {/* FAQs Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="faqs" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12">
             <div>
@@ -588,9 +597,12 @@ export default function Home() {
               <p className="text-gray-600 mb-8">
                 Find quick answers about our digital menu and AI-powered service. Everything you need to know, right here.
               </p>
-              <button className="px-6 py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium">
+              <Link 
+                href="#contact"
+                className="inline-block px-6 py-3 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+              >
                 Contact us
-              </button>
+              </Link>
             </div>
             <div className="space-y-4">
               <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -732,30 +744,20 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-[#080c24] text-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 mb-8">
+          <div className="grid grid-cols-2 gap-8 md:gap-12 mb-8">
             <div>
               <h3 className="text-2xl font-bold mb-4">Smarter menus, seamless dining</h3>
-              <p className="text-gray-300 text-lg mb-2">info@serveai.net</p>
+              <a href="mailto:info@serveai.net" className="text-gray-300 text-lg mb-2 block hover:text-white transition-colors">info@serveai.net</a>
               <p className="text-gray-300">AI-powered QR menus for restaurants.</p>
             </div>
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 justify-items-end pr-4 md:pr-24">
               <div>
                 <h4 className="font-semibold mb-4">Menu</h4>
                 <ul className="space-y-2 text-gray-300">
                   <li><Link href="#" className="hover:text-white transition-colors">Home</Link></li>
                   <li><Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                   <li><Link href="#contact" className="hover:text-white transition-colors">Contact</Link></li>
-                  <li><Link href="#" className="hover:text-white transition-colors">Support</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Resources</h4>
-                <ul className="space-y-2 text-gray-300">
-                  <li><Link href="#" className="hover:text-white transition-colors">Blog</Link></li>
-                  <li><Link href="#faqs" className="hover:text-white transition-colors">FAQ</Link></li>
-                  <li><Link href="#" className="hover:text-white transition-colors">Docs</Link></li>
-                  <li><Link href="#" className="hover:text-white transition-colors">Guides</Link></li>
-                  <li><Link href="#" className="hover:text-white transition-colors">Updates</Link></li>
+                  <li><Link href="#contact" className="hover:text-white transition-colors">Support</Link></li>
                 </ul>
               </div>
             </div>
@@ -771,17 +773,12 @@ export default function Home() {
               />
               <span className="text-2xl font-bold">SERVEAI</span>
             </div>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-6 pr-4 md:pr-24">
               <a href="#" className="hover:text-gray-300 transition-colors">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
                 </svg>
               </a>
-              <div className="text-gray-300 space-x-4">
-                <Link href="#" className="hover:text-white transition-colors">Menu</Link>
-                <Link href="#pricing" className="hover:text-white transition-colors">Pricing</Link>
-                <Link href="#contact" className="hover:text-white transition-colors">Contact</Link>
-              </div>
             </div>
           </div>
         </div>
