@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import type { Restaurant } from '@/types/menu';
@@ -27,7 +28,7 @@ export default function DashboardPage() {
       setUser(user);
       
       // Fetch user's restaurants
-      const { data: restaurants, error } = await supabase
+      const { data: restaurants, error: _error } = await supabase
         .from('restaurants')
         .select('*')
         .contains('owner_ids', [user.id]);
@@ -78,7 +79,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <Link href="/" className="flex items-center">
-              <img
+              <Image
                 src="/Backgroundless_ServeAI_logo.svg"
                 alt="ServeAI Logo"
                 width={48}
