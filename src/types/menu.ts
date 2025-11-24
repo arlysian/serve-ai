@@ -3,6 +3,7 @@ export interface Restaurant {
   slug: string;
   name: string;
   logo_url?: string;
+  owner_ids?: string[];
   theme?: {
     primary_color?: string;
     secondary_color?: string;

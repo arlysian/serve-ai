@@ -742,6 +742,9 @@ export default function RestaurantMenu() {
     <div className="min-h-screen bg-gray-50">
       {/* Full-Screen Hero Landing - Scrolls naturally */}
       <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+        {/* Fallback background if video fails or is missing */}
+        <div className="absolute inset-0" style={{ backgroundColor: '#101828' }}></div>
+
         {/* Video Background */}
         {data.restaurant.hero_video_url && (
           <video
@@ -763,7 +766,7 @@ export default function RestaurantMenu() {
 
       
       {/* Fallback gradient if video fails */}
-      <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(to bottom right, rgb(249, 115, 22), rgb(220, 38, 38))' }}></div>
+      {/* Removed old fallback div */}
       
       {/* Dark overlay for better text visibility on video */}
       <div className="absolute inset-0 bg-black/40"></div>
