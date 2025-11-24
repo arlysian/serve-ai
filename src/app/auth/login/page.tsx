@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
@@ -34,7 +35,7 @@ export default function LoginPage() {
         router.push('/dashboard');
         router.refresh();
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export default function LoginPage() {
         {/* Logo and Header */}
         <div className="text-center">
           <Link href="/" className="flex justify-center items-center mb-4 sm:mb-6">
-            <img
+            <Image
               src="/Backgroundless_ServeAI_logo.svg"
               alt="ServeAI Logo"
               width={48}

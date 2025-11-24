@@ -122,7 +122,7 @@ export async function POST(req: Request) {
         const url = new URL(supabaseLink);
         const token = url.searchParams.get('token');
         const type = url.searchParams.get('type');
-        const redirectTo = url.searchParams.get('redirect_to');
+        // const redirectTo = url.searchParams.get('redirect_to');
         
         if (token) {
           // Create a clean custom link using our domain

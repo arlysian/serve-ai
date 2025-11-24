@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 
 export default function AdminPanel() {
-  const router = useRouter();
+  // const router = useRouter();
 
   useEffect(() => {
     // This will be protected by middleware, but we can add client-side check too

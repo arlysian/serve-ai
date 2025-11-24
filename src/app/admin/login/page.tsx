@@ -31,7 +31,7 @@ export default function AdminLogin() {
 
       // Redirect to admin panel
       router.push("/admin");
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred. Please try again.");
       setLoading(false);
     }

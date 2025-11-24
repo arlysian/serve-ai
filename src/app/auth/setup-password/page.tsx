@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function SetupPasswordPage() {
@@ -164,7 +165,7 @@ export default function SetupPasswordPage() {
       setTimeout(() => {
         router.push('/auth/login');
       }, 2000);
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
@@ -195,7 +196,7 @@ export default function SetupPasswordPage() {
         {/* Logo and Header */}
         <div className="text-center">
           <Link href="/" className="flex justify-center items-center mb-4 sm:mb-6">
-            <img
+            <Image
               src="/Backgroundless_ServeAI_logo.svg"
               alt="ServeAI Logo"
               width={48}
