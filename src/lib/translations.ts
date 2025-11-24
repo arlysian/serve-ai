@@ -11,7 +11,7 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   en: {
-    askAnything: 'Ask anything',
+    askAnything: 'Ask me anything',
     aiMenuAssistant: 'AI Menu Assistant',
     askMeAnything: 'Ask me anything about the menu!',
     askAiAboutThis: 'Ask AI about this',
@@ -19,11 +19,11 @@ export const translations: Record<Language, Translations> = {
     tellMeMoreAbout: 'Tell me more about',
   },
   nl: {
-    askAnything: 'Vraag maar raak',
+    askAnything: 'Stel een vraag',
     aiMenuAssistant: 'AI Menu Assistent',
-    askMeAnything: 'Vraag me alles over het menu!',
+    askMeAnything: 'Stel een vraag over het menu!',
     askAiAboutThis: 'Vraag AI hierover',
-    tryExamples: 'Probeer: "Wat is goed voor vegetariërs?" of "Wat raad je aan?"',
+    tryExamples: 'Probeer: "Wat is lekker voor vegetariërs?" of "Wat raadt u aan?"',
     tellMeMoreAbout: 'Vertel me meer over',
   },
 };
