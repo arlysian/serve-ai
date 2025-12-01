@@ -18,6 +18,57 @@ export default function EditRestaurantPage() {
   // Editing states
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    if (!restaurant) return;
+
+    const file = e.target.files[0];
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    setUploadingLogo(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('restaurant_id', restaurant.id);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Authentication required');
+        setUploadingLogo(false);
+        return;
+      }
+
+      const res = await fetch('/api/editor/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await res.json();
+      if (result.success) {
+        // Update local state (DB update is now handled in API)
+        setRestaurant({ ...restaurant, logo_url: result.url });
+      }
+    } catch (error: unknown) {
+      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to upload logo: ${errorMessage}`);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   // ...
 
@@ -396,13 +447,35 @@ export default function EditRestaurantPage() {
                 <p className="mt-1 text-xs text-gray-500">Contact support to change your URL.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                <input
-                  type="url"
-                  value={restaurant.logo_url || ''}
-                  onChange={(e) => setRestaurant({ ...restaurant, logo_url: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2 text-gray-900 bg-white"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                <div className="flex items-center gap-4">
+                  {restaurant.logo_url && (
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+                      <Image
+                        src={restaurant.logo_url}
+                        alt="Logo Preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-[#080c24] file:text-white
+                        hover:file:opacity-90"
+                      disabled={uploadingLogo}
+                    />
+                    {uploadingLogo && <p className="text-xs text-gray-500 mt-1">Uploading...</p>}
+                    <p className="text-xs text-gray-500 mt-1">Upload a logo image (max 50MB)</p>
+                  </div>
+                </div>
               </div>
               
               <div className="pt-4 border-t border-gray-100">

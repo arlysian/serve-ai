@@ -42,6 +42,26 @@ export default function DashboardPage() {
 
     checkUser();
 
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('dashboard-restaurants')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'restaurants',
+        },
+        (payload) => {
+          // When any restaurant updates, update our list if it matches
+          const newRestaurant = payload.new as Restaurant;
+          setRestaurants((current) => 
+            current.map((r) => (r.id === newRestaurant.id ? { ...r, ...newRestaurant } : r))
+          );
+        }
+      )
+      .subscribe();
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
@@ -53,6 +73,7 @@ export default function DashboardPage() {
 
     return () => {
       subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [router]);
 
@@ -170,12 +191,14 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4 mb-4">
                       {restaurant.logo_url ? (
                         <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                        <Image 
-                          src={restaurant.logo_url} 
-                          alt={restaurant.name} 
-                          fill
-                          className="object-cover"
-                        />
+                          {/* Using img tag instead of next/image to avoid upstream errors with dynamic user uploads 
+                              and provide immediate updates without caching issues */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={`${restaurant.logo_url}?t=${Date.now()}`}
+                            alt={restaurant.name} 
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ) : (
                         <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 flex-shrink-0">
