@@ -170,7 +170,7 @@ export default function EditRestaurantPage() {
     }
   };
 
-  // --- API Helper ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callApi = async (action: string, data: any) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -424,6 +424,7 @@ export default function EditRestaurantPage() {
               <h2 className="text-2xl font-bold text-gray-900">Menu Sections</h2>
               <button
                 onClick={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   setEditingSection({ id: '', name: '', items: [], position: 0 } as any);
                   setIsNewSection(true);
                 }}
@@ -531,6 +532,7 @@ export default function EditRestaurantPage() {
                             section_id: section.id, 
                             name: '', 
                             price: 0,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           } as any);
                           setIsNewItem(true);
                         }}
