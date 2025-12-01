@@ -775,6 +775,7 @@ export default function RestaurantMenu() {
       <div className="relative z-10 flex flex-col items-center justify-center text-center text-white px-4 -mt-20">
         {data.restaurant.logo_url && (
           <div className="w-32 h-32 md:w-40 md:h-40 mb-4 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm overflow-hidden p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={data.restaurant.logo_url}
               alt={`${data.restaurant.name} logo`}
@@ -996,6 +997,8 @@ export default function RestaurantMenu() {
                     <div className={`flex ${item.image_url ? 'gap-4' : ''}`}>
                     {item.image_url && (
                       <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                        {/* Using standard img for external dynamic URLs (Supabase storage) which Next.js Image may not be configured for */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={item.image_url}
                           alt={getItemName(item)}
@@ -1048,6 +1051,8 @@ export default function RestaurantMenu() {
                   <div className={`flex ${item.image_url ? 'gap-4' : ''}`}>
                     {item.image_url && (
                       <div className="w-20 h-20 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
+                        {/* Using standard img for external dynamic URLs (Supabase storage) which Next.js Image may not be configured for */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={item.image_url}
                           alt={getItemName(item)}
@@ -1431,6 +1436,7 @@ export default function RestaurantMenu() {
               {/* Large Dish Image */}
               <div className="relative w-full max-h-[40vh] bg-white flex items-center justify-center overflow-hidden">
                 {selectedDish.image_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={selectedDish.image_url}
                     alt={selectedDish.name}

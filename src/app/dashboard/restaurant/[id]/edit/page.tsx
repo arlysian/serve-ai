@@ -61,9 +61,10 @@ export default function EditRestaurantPage() {
         if (result.success && editingItem) {
           setEditingItem({ ...editingItem, image_url: result.url });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
       console.error('Upload error:', error);
-      alert(`Failed to upload image: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to upload image: ${errorMessage}`);
     } finally {
       setUploadingImage(false);
     }
@@ -225,8 +226,9 @@ export default function EditRestaurantPage() {
         setSections(sections.map(s => s.id === editingSection.id ? { ...s, name: editingSection.name, name_native: editingSection.name_native } : s));
         setEditingSection(null);
       }
-    } catch (error: any) {
-      alert(`Failed to save section: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to save section: ${errorMessage}`);
       console.error(error);
     }
   };
@@ -237,8 +239,9 @@ export default function EditRestaurantPage() {
     try {
       await callApi('delete_section', { id: sectionId });
       setSections(sections.filter(s => s.id !== sectionId));
-    } catch (error: any) {
-      alert(`Failed to delete section: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to delete section: ${errorMessage}`);
       console.error(error);
     }
   };
@@ -288,8 +291,9 @@ export default function EditRestaurantPage() {
         }));
         setEditingItem(null);
       }
-    } catch (error: any) {
-      alert(`Failed to save item: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to save item: ${errorMessage}`);
       console.error(error);
     }
   };
@@ -305,8 +309,9 @@ export default function EditRestaurantPage() {
         }
         return s;
       }));
-    } catch (error: any) {
-      alert(`Failed to delete item: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to delete item: ${errorMessage}`);
       console.error(error);
     }
   };
@@ -475,7 +480,14 @@ export default function EditRestaurantPage() {
                       section.items.map((item) => (
                         <div key={item.id} className="p-4 hover:bg-gray-50 transition-colors flex gap-4 items-start">
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                            <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                            <Image 
+                              src={item.image_url} 
+                              alt={item.name} 
+                              fill
+                              className="object-cover"
+                            />
+                            </div>
                           ) : (
                             <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
                               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -619,11 +631,14 @@ export default function EditRestaurantPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
                   <div className="flex items-center gap-4">
                     {editingItem.image_url && (
-                      <img 
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                      <Image 
                         src={editingItem.image_url} 
                         alt="Preview" 
-                        className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        fill
+                        className="object-cover"
                       />
+                      </div>
                     )}
                     <div className="flex-1">
                       <input

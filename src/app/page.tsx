@@ -89,7 +89,7 @@ export default function Home() {
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
-                <img
+                <Image
                   src="/Backgroundless_ServeAI_logo.svg"
                   alt="ServeAI Logo"
                   width={48}
@@ -764,7 +764,7 @@ export default function Home() {
           </div>
           <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
-              <img
+              <Image
                 src="/Inverted_backgroundless_ServeAI_logo.svg"
                 alt="ServeAI Logo"
                 width={40}

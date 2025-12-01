@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Verify Ownership
-    const restaurantId = data.restaurant_id || data.section_id; // Depends on action context
+    // const restaurantId = data.restaurant_id || data.section_id; // Depends on action context
     
     // We need to find the restaurant_id differently based on what we are operating on
     let targetRestaurantId = '';
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
             .select('menu_sections(restaurant_id)')
             .eq('id', data.id)
             .single();
-            // @ts-ignore
+            // @ts-expect-error - Supabase type inference for nested relations can be tricky
           targetRestaurantId = item?.menu_sections?.restaurant_id;
        }
     }
@@ -166,9 +166,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, data: result });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Server error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

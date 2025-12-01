@@ -98,9 +98,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, url: publicUrl });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Server error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
