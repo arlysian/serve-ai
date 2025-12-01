@@ -163,12 +163,11 @@ export default function DashboardPage() {
             {restaurants.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
                 {restaurants.map((restaurant) => (
-                  <Link 
+                  <div 
                     key={restaurant.id} 
-                    href={`/restaurants/${restaurant.slug}`}
                     className="block bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 mb-4">
                       {restaurant.logo_url ? (
                         <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-full object-cover" />
                       ) : (
@@ -183,7 +182,21 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-500">/{restaurant.slug}</p>
                       </div>
                     </div>
-                  </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/restaurants/${restaurant.slug}`}
+                        className="flex-1 text-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        View Menu
+                      </Link>
+                      <Link
+                        href={`/dashboard/restaurant/${restaurant.id}/edit`}
+                        className="flex-1 text-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#080c24] hover:opacity-90 transition-colors"
+                      >
+                        Edit Menu
+                      </Link>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -192,19 +205,6 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-400">Make sure you&apos;ve added your ID to the owner_ids list in Supabase.</p>
               </div>
             )}
-          </div>
-
-          <div className="bg-[#f5f4f1] rounded-xl p-6 border border-gray-200 order-3 lg:order-2">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Menu Editor</h3>
-            <p className="text-gray-600 mb-4">
-              Edit your menu items, prices, and descriptions
-            </p>
-            <Link
-              href="#"
-              className="inline-block px-4 py-2 bg-[#080c24] text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
-            >
-              Edit Menu
-            </Link>
           </div>
 
           <div className="bg-[#f5f4f1] rounded-xl p-6 border border-gray-200 order-2 lg:order-3">

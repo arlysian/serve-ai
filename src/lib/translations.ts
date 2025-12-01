@@ -31,4 +31,3 @@ export const translations: Record<Language, Translations> = {
 export const getTranslation = (lang: Language, key: keyof Translations): string => {
   return translations[lang][key];
 };
-

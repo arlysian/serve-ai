@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 
-export const revalidate = 3600;
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -68,7 +67,10 @@ export async function GET(
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=3600, stale-while-revalidate=600",
+          // Disable caching to ensure instant updates for the user
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
         },
       }
     );
