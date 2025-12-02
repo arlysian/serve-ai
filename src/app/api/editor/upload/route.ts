@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const restaurantId = formData.get('restaurant_id') as string;
+    const uploadType = formData.get('upload_type') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -96,15 +97,17 @@ export async function POST(req: Request) {
       .from(BUCKET_NAME)
       .getPublicUrl(fileName);
 
-    // 7. Update Database with new Logo URL
-    const { error: dbError } = await supabase
-      .from('restaurants')
-      .update({ logo_url: publicUrl })
-      .eq('id', restaurantId);
+    // 7. Update Database with new Logo URL (ONLY if it's a logo upload)
+    if (uploadType === 'logo') {
+      const { error: dbError } = await supabase
+        .from('restaurants')
+        .update({ logo_url: publicUrl })
+        .eq('id', restaurantId);
 
-    if (dbError) {
-      console.error('Database update error:', dbError);
-      return NextResponse.json({ error: 'File uploaded but failed to update restaurant profile.' }, { status: 500 });
+      if (dbError) {
+        console.error('Database update error:', dbError);
+        return NextResponse.json({ error: 'File uploaded but failed to update restaurant profile.' }, { status: 500 });
+      }
     }
 
     return NextResponse.json({ success: true, url: publicUrl });

@@ -237,7 +237,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-[#f5f4f1] rounded-xl p-6 border border-gray-200 order-2 lg:order-3">
+          <div className="bg-[#f5f4f1] rounded-xl p-6 border border-gray-200 order-2 lg:col-span-2">
             <h3 className="text-xl font-bold text-gray-900 mb-2">Analytics</h3>
             <p className="text-gray-600 mb-4">
               View menu performance and guest insights

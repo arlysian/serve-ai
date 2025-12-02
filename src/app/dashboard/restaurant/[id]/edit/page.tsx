@@ -34,6 +34,7 @@ export default function EditRestaurantPage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('restaurant_id', restaurant.id);
+    formData.append('upload_type', 'logo');
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
