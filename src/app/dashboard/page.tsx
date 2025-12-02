@@ -232,7 +232,7 @@ export default function DashboardPage() {
             ) : (
               <div className="text-center py-8 bg-white rounded-lg border border-gray-200 border-dashed">
                 <p className="text-gray-500 mb-4">No restaurants found linked to your account.</p>
-                <p className="text-sm text-gray-400">Make sure you&apos;ve added your ID to the owner_ids list in Supabase.</p>
+                <p className="text-sm text-gray-400">Please contact <a href="mailto:info@serveai.net" className="text-[#080c24] hover:underline">support</a> if you believe this is an error.</p>
               </div>
             )}
           </div>
