@@ -445,7 +445,6 @@ export default function EditRestaurantPage() {
                   disabled
                   className="w-full rounded-md border-gray-300 bg-gray-50 text-gray-500 shadow-sm border p-2 cursor-not-allowed"
                 />
-                <p className="mt-1 text-xs text-gray-500">Contact support to change your URL.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
@@ -517,8 +516,8 @@ export default function EditRestaurantPage() {
                   {/* Section Header */}
                   <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{section.name}</h3>
-                      {section.name_native && <p className="text-sm text-gray-500">{section.name_native}</p>}
+                      <h3 className="text-lg font-bold text-gray-900">{section.name_native || section.name}</h3>
+                      {section.name && section.name_native && <p className="text-sm text-gray-500">{section.name}</p>}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -615,7 +614,7 @@ export default function EditRestaurantPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        Add Item to {section.name}
+                        Add Item to {section.name_native || section.name}
                       </button>
                     </div>
                   </div>
@@ -633,22 +632,22 @@ export default function EditRestaurantPage() {
             <h3 className="text-xl font-bold text-gray-900 mb-4">{isNewSection ? 'New Section' : 'Edit Section'}</h3>
             <form onSubmit={handleSaveSection} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Section Name (English)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Section Name (Native/Local)</label>
                 <input
                   type="text"
-                  value={editingSection.name}
-                  onChange={(e) => setEditingSection({ ...editingSection, name: e.target.value })}
+                  value={editingSection.name_native || ''}
+                  onChange={(e) => setEditingSection({ ...editingSection, name_native: e.target.value })}
                   className="w-full rounded-md border-gray-300 border p-2 shadow-sm text-gray-900 bg-white"
                   required
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Section Name (Native/Local) - Optional</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Section Name (English) - Optional</label>
                 <input
                   type="text"
-                  value={editingSection.name_native || ''}
-                  onChange={(e) => setEditingSection({ ...editingSection, name_native: e.target.value })}
+                  value={editingSection.name}
+                  onChange={(e) => setEditingSection({ ...editingSection, name: e.target.value })}
                   className="w-full rounded-md border-gray-300 border p-2 shadow-sm text-gray-900 bg-white"
                 />
               </div>
@@ -740,20 +739,21 @@ export default function EditRestaurantPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (English)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (Native/Local)</label>
                   <textarea
-                    value={editingItem.description || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                    value={editingItem.description_native || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, description_native: e.target.value })}
                     rows={2}
                     className="w-full rounded-md border-gray-300 border p-2 shadow-sm text-gray-900 bg-white"
+                    required
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (Native) - Optional</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (English) - Optional</label>
                   <textarea
-                    value={editingItem.description_native || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, description_native: e.target.value })}
+                    value={editingItem.description || ''}
+                    onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
                     rows={2}
                     className="w-full rounded-md border-gray-300 border p-2 shadow-sm text-gray-900 bg-white"
                   />

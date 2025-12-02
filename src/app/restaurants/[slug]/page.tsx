@@ -95,7 +95,7 @@ export default function RestaurantMenu() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFullHero, setShowFullHero] = useState(true);
   const [chatClosing, setChatClosing] = useState(false);
-  const [selectedLangIndex, setSelectedLangIndex] = useState(0);
+  const [selectedLangIndex, setSelectedLangIndex] = useState(1);
   const [backdropVisible, setBackdropVisible] = useState(false);
   
   // Get current language: 0 = English (en), 1 = Dutch (nl)
