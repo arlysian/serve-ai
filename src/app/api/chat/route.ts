@@ -313,9 +313,9 @@ CONSTRAINTS:
     });
 
   } catch (err) {
-    console.error("Error in /api/ask:", err);
+    console.error("Error in /api/chat:", err);
     return NextResponse.json(
-      { error: "Internal Server Error", details: err instanceof Error ? err.message : "Unknown server error" },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { verifyAdminCookie } from "@/lib/adminAuth";
 
 // This uses the service role key for admin operations
 const supabaseAdmin = createClient(
@@ -10,6 +11,17 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
+    // Verify admin authentication
+    const cookieHeader = req.headers.get("cookie");
+    const isAdmin = await verifyAdminCookie(cookieHeader);
+    
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 401 }
+      );
+    }
+
     const { email } = await req.json();
 
     if (!email) {

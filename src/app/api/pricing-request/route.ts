@@ -2,9 +2,29 @@ import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   try {
+    // Rate limiting: 1 request per 10 minutes per IP
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown-ip";
+
+    const isAllowed = await checkRateLimit(
+      `pricing-request:${ipAddress}`,
+      1,
+      10 * 60 * 1000 // 10 minutes
+    );
+
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: "You've already submitted a request recently. Please try again in 10 minutes." },
+        { status: 429, headers: { "Retry-After": "600" } }
+      );
+    }
+
     const { companyName, email, phone } = await req.json();
 
     // Validate required fields

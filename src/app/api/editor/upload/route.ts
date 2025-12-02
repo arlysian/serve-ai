@@ -46,13 +46,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 4. Validate File
+    // 4. Validate File (SVG excluded due to XSS risk)
     const validTypes = [
-      'image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif',
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
       'video/mp4', 'video/webm', 'video/ogg'
     ];
     if (!validTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Only images and videos are allowed.' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid file type. Only images (JPEG, PNG, WebP, GIF) and videos are allowed.' }, { status: 400 });
     }
 
     if (file.size > 50 * 1024 * 1024) { // 50MB limit (increased for videos)
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      return NextResponse.json({ error: `Failed to upload. Ensure bucket "${BUCKET_NAME}" exists.` }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to upload file. Please try again.' }, { status: 500 });
     }
 
     // 6. Get Public URL
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
 
       if (dbError) {
         console.error('Database update error:', dbError);
-        return NextResponse.json({ error: 'File uploaded but failed to update restaurant profile.' }, { status: 500 });
+        return NextResponse.json({ error: 'File uploaded but failed to save. Please try again.' }, { status: 500 });
       }
     }
 
@@ -114,8 +114,7 @@ export async function POST(req: Request) {
 
   } catch (err: unknown) {
     console.error('Server error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
 }
 

@@ -78,7 +78,7 @@ export async function POST(req: Request) {
       .single();
 
     if (!restaurant || !restaurant.owner_ids?.includes(user.id)) {
-      return NextResponse.json({ error: 'Forbidden: You do not own this restaurant' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // 3. Perform Action
@@ -161,15 +161,14 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('Database error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to save changes. Please try again.' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data: result });
 
   } catch (err: unknown) {
     console.error('Server error:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
 }
 
