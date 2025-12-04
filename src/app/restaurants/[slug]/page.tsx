@@ -755,10 +755,9 @@ export default function RestaurantMenu() {
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: "center center" }}
-            onError={(e) => (e.currentTarget.style.display = "none")}
           >
             <source
-              src={`${data.restaurant.hero_video_url}?v=${Date.now()}`} // cache-bust if re-uploaded
+              src={`/api/video-proxy?url=${encodeURIComponent(data.restaurant.hero_video_url)}&v=${Date.now()}`}
               type="video/mp4"
             />
           </video>
