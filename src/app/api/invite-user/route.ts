@@ -46,6 +46,7 @@ export async function POST(req: Request) {
 
     // Try to create the user first (or get existing user)
     let user;
+    let userAlreadyExisted = false;
     
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -54,58 +55,54 @@ export async function POST(req: Request) {
     });
 
     if (createError) {
-      // If user already exists, try to find them with pagination
-      // Check multiple possible error formats (case-insensitive)
-      const errorMsg = (createError.message || createError.toString() || '').toLowerCase();
-      const isAlreadyExists = errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists');
+      // Log the error for debugging
+      console.log("Create user error:", JSON.stringify(createError));
       
-      if (isAlreadyExists) {
-        // User exists, find them efficiently with pagination
-        let foundUser = null;
-        let page = 1;
-        const pageSize = 1000;
+      // Any error from createUser - try to find existing user
+      // (Most likely "user already exists" but we handle all errors the same way)
+      userAlreadyExisted = true;
+      
+      // Find user by listing and filtering (Supabase doesn't have getUserByEmail)
+      let foundUser = null;
+      let page = 1;
+      const pageSize = 1000;
+      
+      while (!foundUser && page <= 10) {
+        const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage: pageSize
+        });
         
-        while (!foundUser && page <= 10) { // Limit to 10 pages to prevent infinite loops
-          const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-            page,
-            perPage: pageSize
-          });
-          
-          if (listError) {
-            console.error("Error listing users:", listError);
-            return NextResponse.json(
-              { error: "Failed to find existing user" },
-              { status: 500 }
-            );
-          }
-          
-          // Case-insensitive email match
-          foundUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-          
-          // If found or no more pages, break
-          if (foundUser || users.length < pageSize) {
-            break;
-          }
-          
-          page++;
-        }
-        
-        if (!foundUser) {
+        if (listError) {
+          console.error("Error listing users:", listError);
           return NextResponse.json(
-            { error: "User exists but could not be retrieved" },
+            { error: "Failed to process user" },
             { status: 500 }
           );
         }
         
-        user = foundUser;
-      } else {
-        // Other error creating user
-        console.error("Error creating user:", createError);
+        const users = listData?.users || [];
+        
+        // Case-insensitive email match
+        foundUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+        
+        // If found or no more pages, break
+        if (foundUser || users.length < pageSize) {
+          break;
+        }
+        
+        page++;
+      }
+      
+      if (!foundUser) {
+        // User doesn't exist and we couldn't create them - real error
         return NextResponse.json(
-          { error: createError.message || "Failed to create user" },
+          { error: "Failed to create or find user. Please try again." },
           { status: 500 }
         );
       }
+      
+      user = foundUser;
     } else {
       // User created successfully
       user = newUser.user;
