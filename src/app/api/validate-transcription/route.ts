@@ -1,11 +1,54 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { verify } from "@/lib/sign";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+// Parse cookie helper
+function parseCookie(str?: string | null) {
+  if (!str) return {};
+  try {
+    return Object.fromEntries(
+      str.split(";").map(v => {
+        const [k, val] = v.trim().split("=");
+        return [k, val || ""];
+      })
+    );
+  } catch {
+    return {};
+  }
+}
+
+function unauthorized() {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
 export async function POST(req: Request) {
+  // --- SESSION VERIFICATION ---
+  const cookieHeader = req.headers.get("cookie");
+  const cookies = parseCookie(cookieHeader);
+  const sess = cookies["sess"];
+
+  if (!sess) return unauthorized();
+
+  const [id, sig] = sess.split(".");
+  if (!id || !sig || !(await verify(id, sig))) {
+    return unauthorized();
+  }
+
+  // --- RATE LIMITING ---
+  // 20 validations per minute per session
+  const isAllowed = await checkRateLimit(`validate:${id}`, 20, 60 * 1000);
+  if (!isAllowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+
   try {
     const { text } = await req.json();
 
@@ -58,4 +101,3 @@ Return ONLY "valid" if the text is meaningful and relevant, or "invalid" if it's
     );
   }
 }
-

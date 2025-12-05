@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // This uses the service role key for admin operations
 const supabaseAdmin = createClient(
@@ -8,8 +9,31 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
+// Generic success message - same whether user exists or not
+const SUCCESS_MESSAGE = "If an account exists with this email, a password reset link has been sent.";
+
 export async function POST(req: Request) {
   try {
+    // --- RATE LIMITING ---
+    // 3 password reset requests per 15 minutes per IP
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown-ip";
+
+    const isAllowed = await checkRateLimit(
+      `reset-password:${ipAddress}`,
+      3,
+      15 * 60 * 1000 // 15 minutes
+    );
+
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: "Too many password reset attempts. Please try again in 15 minutes." },
+        { status: 429, headers: { "Retry-After": "900" } }
+      );
+    }
+
     const { email } = await req.json();
 
     if (!email) {
@@ -42,9 +66,10 @@ export async function POST(req: Request) {
       
       if (listError) {
         console.error("Error listing users:", listError);
+        // Don't reveal internal errors - return success message
         return NextResponse.json(
-          { error: "Failed to verify user account" },
-          { status: 500 }
+          { success: true, message: SUCCESS_MESSAGE },
+          { status: 200 }
         );
       }
       
@@ -66,13 +91,11 @@ export async function POST(req: Request) {
       break;
     }
 
-    // If user doesn't exist, return an error
+    // If user doesn't exist, return the same success message (prevent email enumeration)
     if (!user) {
       return NextResponse.json(
-        { 
-          error: "No account found with this email address. Please check your email or contact support if you believe this is an error." 
-        },
-        { status: 404 }
+        { success: true, message: SUCCESS_MESSAGE },
+        { status: 200 }
       );
     }
 
@@ -90,9 +113,10 @@ export async function POST(req: Request) {
 
     if (linkError) {
       console.error("Error generating password reset link:", linkError);
+      // Don't reveal errors - return success message
       return NextResponse.json(
-        { error: linkError.message || "Failed to generate password reset link" },
-        { status: 500 }
+        { success: true, message: SUCCESS_MESSAGE },
+        { status: 200 }
       );
     }
 
@@ -118,9 +142,10 @@ export async function POST(req: Request) {
     }
 
     if (!resetLink) {
+      // Don't reveal errors - return success message
       return NextResponse.json(
-        { error: "Failed to generate reset link" },
-        { status: 500 }
+        { success: true, message: SUCCESS_MESSAGE },
+        { status: 200 }
       );
     }
 
@@ -199,45 +224,21 @@ This link will expire in 1 hour. If you didn't request this, please contact us a
         });
       }
       
-      // Provide more helpful error message for authentication errors
-      if (emailError && typeof emailError === 'object' && 'code' in emailError && (emailError as { code?: string }).code === 'EAUTH') {
-        console.error("SMTP Authentication failed. Make sure you're using an App Password, not your regular Gmail password.");
-        return NextResponse.json(
-          { 
-            error: "Email configuration error. Please contact support." 
-          },
-          { status: 500 }
-        );
-      }
-      
-      // Return more detailed error for debugging
-      const errorMessage = emailError instanceof Error 
-        ? emailError.message 
-        : "Failed to send password reset email. Please try again later.";
-      
-      return NextResponse.json(
-        { 
-          error: errorMessage,
-          details: emailError instanceof Error ? emailError.message : "Unknown error"
-        },
-        { status: 500 }
-      );
+      // Don't reveal email sending errors to prevent enumeration
+      // Return success message anyway
     }
 
-    // Return success
+    // Return success (same message whether email sent or not)
     return NextResponse.json(
-      { 
-        success: true, 
-        message: "Password reset link has been sent to your email address." 
-      },
+      { success: true, message: SUCCESS_MESSAGE },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error in reset-password API:", error);
+    // Don't reveal internal errors
     return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
+      { success: true, message: SUCCESS_MESSAGE },
+      { status: 200 }
     );
   }
 }
-
