@@ -15,7 +15,7 @@ function jsonResponse(data: unknown, status: number = 200): Response {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'X-API-Version': 'v4-invite-first',  // Marker to confirm new deployment
+      'X-API-Version': 'v5-check-first',  // Marker to confirm new deployment
     },
   });
 }
@@ -55,22 +55,38 @@ export async function POST(req: Request) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
       (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
     
-    let linkData;
-    let userAlreadyExisted = false;
+    // Check if user already exists
+    let existingUser = null;
+    let page = 1;
+    const pageSize = 1000;
     
-    // First try 'invite' - this creates the user if they don't exist
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email.toLowerCase(),
-      options: {
-        redirectTo: `${siteUrl}/auth/setup-password`,
-      }
-    });
-
-    if (inviteError) {
-      // If invite fails (user exists), try recovery link instead
-      userAlreadyExisted = true;
+    while (!existingUser && page <= 10) {
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: pageSize
+      });
       
+      if (listError) {
+        console.error("Error listing users:", listError);
+        return jsonResponse({ error: "Failed to check user existence" }, 500);
+      }
+      
+      const users = listData?.users || [];
+      existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+      
+      if (existingUser || users.length < pageSize) {
+        break;
+      }
+      
+      page++;
+    }
+    
+    const userAlreadyExisted = !!existingUser;
+    let linkData;
+    let user;
+    
+    if (userAlreadyExisted) {
+      // User exists - use recovery link
       const { data: recoveryData, error: recoveryError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: email.toLowerCase(),
@@ -80,17 +96,30 @@ export async function POST(req: Request) {
       });
       
       if (recoveryError) {
-        console.error("Recovery link also failed:", recoveryError);
-        return jsonResponse({ error: `Failed to generate link: ${recoveryError.message}` }, 500);
+        console.error("Recovery link failed:", recoveryError);
+        return jsonResponse({ error: `Failed to generate recovery link: ${recoveryError.message}` }, 500);
       }
       
       linkData = recoveryData;
+      user = existingUser;
     } else {
+      // User doesn't exist - use invite link (creates user)
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: email.toLowerCase(),
+        options: {
+          redirectTo: `${siteUrl}/auth/setup-password`,
+        }
+      });
+      
+      if (inviteError) {
+        console.error("Invite link failed:", inviteError);
+        return jsonResponse({ error: `Failed to generate invite link: ${inviteError.message}` }, 500);
+      }
+      
       linkData = inviteData;
+      user = inviteData.user;
     }
-    
-    // Get user info from the link data
-    const user = linkData.user;
 
     // Extract the token from Supabase's link to create our custom clean link
     const supabaseLink = linkData.properties?.action_link;
