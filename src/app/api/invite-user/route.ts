@@ -55,7 +55,11 @@ export async function POST(req: Request) {
 
     if (createError) {
       // If user already exists, try to find them with pagination
-      if (createError.message?.includes('already registered') || createError.message?.includes('already exists')) {
+      // Check multiple possible error formats (case-insensitive)
+      const errorMsg = (createError.message || createError.toString() || '').toLowerCase();
+      const isAlreadyExists = errorMsg.includes('already') || errorMsg.includes('duplicate') || errorMsg.includes('exists');
+      
+      if (isAlreadyExists) {
         // User exists, find them efficiently with pagination
         let foundUser = null;
         let page = 1;
