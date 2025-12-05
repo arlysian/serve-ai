@@ -69,7 +69,6 @@ export async function POST(req: Request) {
 
     if (inviteError) {
       // If invite fails (user exists), try recovery link instead
-      console.log("Invite failed, trying recovery:", inviteError.message);
       userAlreadyExisted = true;
       
       const { data: recoveryData, error: recoveryError } = await supabaseAdmin.auth.admin.generateLink({
