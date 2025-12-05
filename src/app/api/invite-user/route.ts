@@ -15,7 +15,7 @@ function jsonResponse(data: unknown, status: number = 200): Response {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
-      'X-API-Version': 'v2-clean',  // Marker to confirm new deployment
+      'X-API-Version': 'v3-recovery-fix',  // Marker to confirm new deployment
     },
   });
 }
@@ -107,13 +107,16 @@ export async function POST(req: Request) {
       user = newUser.user;
     }
 
-    // Generate invite link for new users
-    // Use serveai.net as default in production, localhost for development
+    // Generate link - use 'invite' for new users, 'recovery' for existing users
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
       (process.env.NODE_ENV === 'production' ? 'https://serveai.net' : 'http://localhost:3000');
     
+    // Use 'recovery' for existing users (works like password reset)
+    // Use 'invite' only for brand new users
+    const linkType = userAlreadyExisted ? 'recovery' : 'invite';
+    
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
+      type: linkType,
       email: email.toLowerCase(),
       options: {
         redirectTo: `${siteUrl}/auth/setup-password`,
@@ -121,8 +124,8 @@ export async function POST(req: Request) {
     });
 
     if (linkError) {
-      console.error("Error generating invite link:", linkError);
-      return jsonResponse({ error: linkError.message || "Failed to generate invite link" }, 500);
+      console.error(`Error generating ${linkType} link:`, linkError);
+      return jsonResponse({ error: `Failed to generate setup link: ${linkError.message}` }, 500);
     }
 
     // Extract the token from Supabase's link to create our custom clean link
@@ -229,8 +232,11 @@ This link will expire in 24 hours. If you didn't request this, please contact us
 
     return jsonResponse({ 
       success: true, 
-      message: "Password setup email sent successfully",
-      user: user
+      message: userAlreadyExisted 
+        ? "Password reset email sent to existing user" 
+        : "Invite email sent to new user",
+      user: user,
+      userAlreadyExisted
     }, 200);
   } catch (error) {
     console.error("Error in invite-user API:", error);
