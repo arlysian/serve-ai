@@ -1,11 +1,24 @@
-import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import { verifyAdminAuth, verifyAdminCookie } from "@/lib/adminAuth";
 
-// Force Node.js runtime (not Edge) to avoid streaming issues
+// Force Node.js runtime and disable all caching
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+
+// Helper to create JSON response without NextResponse
+function jsonResponse(data: unknown, status: number = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'X-API-Version': 'v2-clean',  // Marker to confirm new deployment
+    },
+  });
+}
 
 // This uses the service role key for admin operations
 const supabaseAdmin = createClient(
@@ -24,28 +37,19 @@ export async function POST(req: Request) {
     const isAdminByCookie = await verifyAdminCookie(cookieHeader);
     
     if (!isAdminByToken && !isAdminByCookie) {
-      return NextResponse.json(
-        { error: "Unauthorized - Admin access required" },
-        { status: 401 }
-      );
+      return jsonResponse({ error: "Unauthorized - Admin access required" }, 401);
     }
 
     const { email } = await req.json();
 
     if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+      return jsonResponse({ error: "Email is required" }, 400);
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
+      return jsonResponse({ error: "Invalid email format" }, 400);
     }
 
     // Try to create the user first (or get existing user)
@@ -76,10 +80,7 @@ export async function POST(req: Request) {
         
         if (listError) {
           console.error("Error listing users:", listError);
-          return NextResponse.json(
-            { error: "Failed to process user" },
-            { status: 500 }
-          );
+          return jsonResponse({ error: "Failed to process user" }, 500);
         }
         
         const users = listData?.users || [];
@@ -97,10 +98,7 @@ export async function POST(req: Request) {
       
       if (!foundUser) {
         // User doesn't exist and we couldn't create them - real error
-        return NextResponse.json(
-          { error: "Failed to create or find user. Please try again." },
-          { status: 500 }
-        );
+        return jsonResponse({ error: "Failed to create or find user. Please try again." }, 500);
       }
       
       user = foundUser;
@@ -124,10 +122,7 @@ export async function POST(req: Request) {
 
     if (linkError) {
       console.error("Error generating invite link:", linkError);
-      return NextResponse.json(
-        { error: linkError.message || "Failed to generate invite link" },
-        { status: 500 }
-      );
+      return jsonResponse({ error: linkError.message || "Failed to generate invite link" }, 500);
     }
 
     // Extract the token from Supabase's link to create our custom clean link
@@ -154,10 +149,7 @@ export async function POST(req: Request) {
     }
 
     if (!setupLink) {
-      return NextResponse.json(
-        { error: "Failed to generate setup link" },
-        { status: 500 }
-      );
+      return jsonResponse({ error: "Failed to generate setup link" }, 500);
     }
 
     // Send email with the clean custom link
@@ -226,31 +218,22 @@ This link will expire in 24 hours. If you didn't request this, please contact us
     } catch (emailError) {
       console.error("Error sending email:", emailError);
       // Still return success with the link, so you can send it manually if needed
-      return NextResponse.json(
-        { 
-          success: true, 
-          message: "User created and link generated, but email failed to send",
-          setupLink: setupLink, // Include link in case email fails
-          user: user,
-          warning: "Please send the setup link manually via email"
-        },
-        { status: 200 }
-      );
+      return jsonResponse({ 
+        success: true, 
+        message: "User created and link generated, but email failed to send",
+        setupLink: setupLink,
+        user: user,
+        warning: "Please send the setup link manually via email"
+      }, 200);
     }
 
-    return NextResponse.json(
-      { 
-        success: true, 
-        message: "Password setup email sent successfully",
-        user: user
-      },
-      { status: 200 }
-    );
+    return jsonResponse({ 
+      success: true, 
+      message: "Password setup email sent successfully",
+      user: user
+    }, 200);
   } catch (error) {
     console.error("Error in invite-user API:", error);
-    return NextResponse.json(
-      { error: "An unexpected error occurred" },
-      { status: 500 }
-    );
+    return jsonResponse({ error: "An unexpected error occurred" }, 500);
   }
 }
