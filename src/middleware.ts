@@ -3,8 +3,7 @@ import { nanoid } from "nanoid";
 import { sign } from "./lib/sign";
 
 export const config = {
-  // Exclude API routes from middleware - they handle their own auth
-  matcher: ["/((?!_next|static|favicon.ico|images|fonts|api).*)"],
+  matcher: ["/((?!_next|static|favicon.ico|images|fonts).*)"],
 };
 
 export async function middleware(req: Request) {
