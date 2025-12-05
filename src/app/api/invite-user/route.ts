@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import { verifyAdminAuth, verifyAdminCookie } from "@/lib/adminAuth";
 
+// Force Node.js runtime (not Edge) to avoid streaming issues
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // This uses the service role key for admin operations
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -55,9 +59,6 @@ export async function POST(req: Request) {
     });
 
     if (createError) {
-      // Log the error for debugging
-      console.log("Create user error:", JSON.stringify(createError));
-      
       // Any error from createUser - try to find existing user
       // (Most likely "user already exists" but we handle all errors the same way)
       userAlreadyExisted = true;
