@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { sign } from "./lib/sign";
 
+export const config = {
+  // Exclude API routes from middleware - they handle their own auth
+  matcher: ["/((?!_next|static|favicon.ico|images|fonts|api).*)"],
+};
+
 export async function middleware(req: Request) {
   // Handle regular session cookie for all routes
   const res = NextResponse.next();
@@ -25,7 +30,3 @@ export async function middleware(req: Request) {
 
   return res;
 }
-
-export const config = {
-  matcher: ["/((?!_next|static|favicon.ico|images|fonts).*)"],
-};
