@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 import { getTranslation, type Language } from "@/lib/translations";
 
+
 interface MenuItem {
   id: string;
   name: string;
@@ -135,6 +136,15 @@ export default function RestaurantMenu() {
   const audioChunksRef = useRef<Blob[]>([]);
   const lastMicClickRef = useRef<number>(0);
   const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Gemini Live voice refs - direct WebSocket connection
+  const geminiWsRef = useRef<WebSocket | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
+  const playbackQueueRef = useRef<AudioBufferSourceNode[]>([]);
+  const nextPlayTimeRef = useRef<number>(0);
 
 
   // ✅ Fetch restaurant + menu data
@@ -1128,170 +1138,267 @@ export default function RestaurantMenu() {
             className="flex-1 bg-transparent border-0 outline-none text-gray-700 placeholder-gray-500 pl-4 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           
-          {/* Microphone Button */}
-          <button 
+          {/* Microphone Button - Gemini Live Voice (Direct WebSocket) */}
+          <button
             disabled={chatLoading}
             onClick={async () => {
-              if (chatLoading) return; // Prevent recording while streaming
+              if (chatLoading) return;
+
               if (isRecording) {
-                // Prevent spam: require 1 second delay after starting recording
+                // Stop recording - send end signal to Gemini
                 const timeSinceStart = Date.now() - lastMicClickRef.current;
-                if (timeSinceStart < 1000) {
-                  return;
-                }
-                
-                // Stop recording
-                if (recordingTimeoutRef.current) {
-                  clearTimeout(recordingTimeoutRef.current);
-                  recordingTimeoutRef.current = null;
-                }
-                if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-                  mediaRecorderRef.current.stop();
-                }
+                if (timeSinceStart < 1000) return;
+
                 setIsRecording(false);
+                console.log('[voice] Stopping recording...');
+
+                // Stop audio capture
+                if (processorRef.current) {
+                  processorRef.current.disconnect();
+                  processorRef.current = null;
+                }
+                if (streamRef.current) {
+                  streamRef.current.getTracks().forEach(t => t.stop());
+                  streamRef.current = null;
+                }
+                if (audioContextRef.current) {
+                  audioContextRef.current.close();
+                  audioContextRef.current = null;
+                }
+
+                // Send end of audio stream to Gemini
+                if (geminiWsRef.current && geminiWsRef.current.readyState === WebSocket.OPEN) {
+                  geminiWsRef.current.send(JSON.stringify({
+                    realtimeInput: { audioStreamEnd: true }
+                  }));
+                  console.log('[voice] Sent audioStreamEnd to Gemini');
+                }
+
                 return;
               }
 
-              // Open chat when starting to record
-              if (!showChat) {
-                setChatClosing(false);
-                setShowChat(true);
-                setTimeout(() => setBackdropVisible(true), 10);
-              }
-
-              // Record when recording started
               lastMicClickRef.current = Date.now();
 
               try {
-                // Request microphone access
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // Initialize MediaRecorder
-                const mediaRecorder = new MediaRecorder(stream, {
-                  mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
-                });
-                
-                mediaRecorderRef.current = mediaRecorder;
-                audioChunksRef.current = [];
+                // Get token from server
+                console.log('[voice] Getting token...');
+                const tokenRes = await fetch('/api/voice-token', { method: 'POST' });
+                const tokenData = await tokenRes.json();
+                if (!tokenData.token) {
+                  throw new Error('Failed to get token');
+                }
+                console.log('[voice] Got token, type:', tokenData.type);
 
-                mediaRecorder.ondataavailable = (event) => {
-                  if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                  }
+                // Connect directly to Gemini
+                const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${tokenData.token}`;
+                const ws = new WebSocket(wsUrl);
+                geminiWsRef.current = ws;
+
+                // Setup playback context
+                if (!playbackContextRef.current) {
+                  playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+                }
+                const playbackCtx = playbackContextRef.current;
+                nextPlayTimeRef.current = 0;
+
+                ws.onopen = () => {
+                  console.log('[voice] Connected to Gemini, sending setup...');
+                  // Send setup message
+                  ws.send(JSON.stringify({
+                    setup: {
+                      model: tokenData.model || "models/gemini-2.5-flash-native-audio-preview-12-2025",
+                      generationConfig: {
+                        responseModalities: ["AUDIO"]
+                      }
+                    }
+                  }));
                 };
 
-                mediaRecorder.onstop = async () => {
-                  // Clear timeout if still active
-                  if (recordingTimeoutRef.current) {
-                    clearTimeout(recordingTimeoutRef.current);
-                    recordingTimeoutRef.current = null;
+                // Track active audio sources for interruption
+                const activeSources: AudioBufferSourceNode[] = [];
+
+                ws.onmessage = async (event) => {
+                  const data = typeof event.data === 'string' ? event.data : await event.data.text();
+                  const msg = JSON.parse(data);
+
+                  if (msg.setupComplete) {
+                    console.log('[voice] Gemini setup complete, starting audio capture...');
+                    startAudioCapture();
                   }
-                  
-                  // Stop all tracks
-                  stream.getTracks().forEach(track => track.stop());
 
-                  // Create audio blob
-                  const audioBlob = new Blob(audioChunksRef.current, { 
-                    type: mediaRecorder.mimeType 
-                  });
-
-                  // Send to Whisper API
-                  try {
-                    const formData = new FormData();
-                    formData.append('audio', audioBlob, 'recording.webm');
-
-                    const response = await fetch('/api/transcribe', {
-                      method: 'POST',
-                      body: formData,
+                  // Handle interruption - stop all playback
+                  if (msg.serverContent?.interrupted) {
+                    console.log('[voice] Interrupted - stopping playback');
+                    activeSources.forEach(source => {
+                      try { source.stop(); } catch (e) { /* already stopped */ }
                     });
+                    activeSources.length = 0;
+                    nextPlayTimeRef.current = 0;
+                  }
 
-                    if (!response.ok) {
-                      throw new Error('Transcription failed');
-                    }
-
-                    const transcriptionData = await response.json();
-                    
-                    // Validate transcription semantically
-                    if (transcriptionData.text && transcriptionData.text.trim()) {
-                      try {
-                        const validateResponse = await fetch('/api/validate-transcription', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({ text: transcriptionData.text }),
-                        });
-
-                        if (validateResponse.ok) {
-                          const validationData = await validateResponse.json();
-                          
-                          // Only fill input if validation passes
-                          if (validationData.valid && validationData.text && floatingInputRef.current) {
-                            floatingInputRef.current.value = validationData.text;
-                            setHasInputText(validationData.text.trim().length > 0);
-                          }
-                          // If invalid, silently ignore (don't show hallucinated text)
-                        }
-                      } catch (validationError) {
-                        console.error('Validation error:', validationError);
-                        // On validation error, still use the transcription (fail open)
-                        if (floatingInputRef.current && transcriptionData.text) {
-                          floatingInputRef.current.value = transcriptionData.text.trim();
-                          setHasInputText(transcriptionData.text.trim().length > 0);
+                  // Handle audio response - play immediately
+                  if (msg.serverContent?.modelTurn?.parts) {
+                    for (const part of msg.serverContent.modelTurn.parts) {
+                      if (part.inlineData?.data) {
+                        const source = playAudioChunk(part.inlineData.data, playbackCtx);
+                        if (source) {
+                          activeSources.push(source);
+                          source.onended = () => {
+                            const idx = activeSources.indexOf(source);
+                            if (idx > -1) activeSources.splice(idx, 1);
+                          };
                         }
                       }
                     }
-                  } catch (error) {
-                    console.error('Transcription error:', error);
-                    alert('Failed to transcribe audio. Please try again.');
                   }
 
-                  // Clear chunks
-                  audioChunksRef.current = [];
+                  if (msg.serverContent?.turnComplete) {
+                    console.log('[voice] Gemini turn complete');
+                  }
                 };
 
-                // Start recording
-                mediaRecorder.start();
-                setIsRecording(true);
-                
-                // Auto-stop after 30 seconds
-                recordingTimeoutRef.current = setTimeout(() => {
-                  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-                    mediaRecorderRef.current.stop();
-                  }
+                ws.onerror = (e) => {
+                  console.error('[voice] WebSocket error:', e);
                   setIsRecording(false);
-                  recordingTimeoutRef.current = null;
-                }, 30000);
+                };
+
+                ws.onclose = (e) => {
+                  console.log('[voice] WebSocket closed:', e.code, e.reason);
+                  geminiWsRef.current = null;
+                };
+
+                // Helper to play audio chunk - returns source for tracking
+                const playAudioChunk = (base64Data: string, ctx: AudioContext): AudioBufferSourceNode | null => {
+                  try {
+                    const binaryStr = atob(base64Data);
+                    const bytes = new Uint8Array(binaryStr.length);
+                    for (let i = 0; i < binaryStr.length; i++) {
+                      bytes[i] = binaryStr.charCodeAt(i);
+                    }
+
+                    const int16 = new Int16Array(bytes.buffer);
+                    const float32 = new Float32Array(int16.length);
+                    for (let i = 0; i < int16.length; i++) {
+                      float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7FFF);
+                    }
+
+                    const buffer = ctx.createBuffer(1, float32.length, 24000);
+                    buffer.getChannelData(0).set(float32);
+
+                    const source = ctx.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(ctx.destination);
+
+                    const now = ctx.currentTime;
+                    if (nextPlayTimeRef.current < now) {
+                      nextPlayTimeRef.current = now;
+                    }
+                    source.start(nextPlayTimeRef.current);
+                    nextPlayTimeRef.current += buffer.duration;
+                    return source;
+                  } catch (e) {
+                    console.error('[voice] Audio playback error:', e);
+                    return null;
+                  }
+                };
+
+                // Helper to start audio capture and stream to Gemini
+                const startAudioCapture = async () => {
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                    });
+                    streamRef.current = stream;
+
+                    const audioContext = new AudioContext();
+                    audioContextRef.current = audioContext;
+                    console.log('[voice] AudioContext sample rate:', audioContext.sampleRate);
+
+                    const source = audioContext.createMediaStreamSource(stream);
+                    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                    processorRef.current = processor;
+
+                    const nativeSampleRate = audioContext.sampleRate;
+                    const targetSampleRate = 16000;
+                    const resampleRatio = nativeSampleRate / targetSampleRate;
+
+                    processor.onaudioprocess = (e) => {
+                      if (!geminiWsRef.current || geminiWsRef.current.readyState !== WebSocket.OPEN) return;
+
+                      const inputData = e.inputBuffer.getChannelData(0);
+                      // Downsample to 16kHz
+                      const downsampled: number[] = [];
+                      for (let i = 0; i < inputData.length; i += resampleRatio) {
+                        const idx = Math.floor(i);
+                        if (idx < inputData.length) {
+                          downsampled.push(inputData[idx]);
+                        }
+                      }
+
+                      // Convert to 16-bit PCM
+                      const int16Array = new Int16Array(downsampled.length);
+                      for (let i = 0; i < downsampled.length; i++) {
+                        const s = Math.max(-1, Math.min(1, downsampled[i]));
+                        int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                      }
+
+                      // Convert to base64
+                      const uint8Array = new Uint8Array(int16Array.buffer);
+                      let binary = '';
+                      for (let i = 0; i < uint8Array.length; i++) {
+                        binary += String.fromCharCode(uint8Array[i]);
+                      }
+                      const audioBase64 = btoa(binary);
+
+                      // Stream to Gemini
+                      geminiWsRef.current.send(JSON.stringify({
+                        realtimeInput: {
+                          mediaChunks: [{
+                            mimeType: "audio/pcm;rate=16000",
+                            data: audioBase64
+                          }]
+                        }
+                      }));
+                    };
+
+                    source.connect(processor);
+                    processor.connect(audioContext.destination);
+
+                    setIsRecording(true);
+                    console.log('[voice] Now streaming audio to Gemini...');
+
+                  } catch (error) {
+                    console.error('[voice] Microphone access error:', error);
+                    alert('Failed to access microphone.');
+                    setIsRecording(false);
+                  }
+                };
 
               } catch (error) {
-                console.error('Microphone access error:', error);
-                if (error instanceof Error && error.name === 'NotAllowedError') {
-                  alert('Microphone permission denied. Please allow microphone access.');
-                } else {
-                  alert('Failed to access microphone. Please try again.');
-                }
+                console.error('[voice] Error:', error);
+                alert('Failed to start voice chat.');
                 setIsRecording(false);
               }
             }}
             className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 flex-shrink-0 ${
-              isRecording 
-                ? 'bg-blue-700 hover:bg-red-600' 
+              isRecording
+                ? 'bg-blue-500 hover:bg-red-600'
                 : 'hover:bg-gray-100'
             } ${chatLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={isRecording ? "Stop recording" : "Voice input"}
           >
-            <svg 
-              className={`w-5 h-5 ${isRecording ? 'text-white' : 'text-gray-600'}`} 
-              fill={isRecording ? "currentColor" : "none"} 
-              stroke="currentColor" 
+            <svg
+              className={`w-5 h-5 ${isRecording ? 'text-white' : 'text-gray-600'}`}
+              fill={isRecording ? "currentColor" : "none"}
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
           </button>
-          
+
           {/* Send Button */}
-          <button 
+          <button
             onClick={handleSendButtonClick}
             disabled={chatLoading && hasInputText}
             className="flex items-center justify-center w-10 h-10 bg-black hover:bg-gray-800 rounded-full transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -21,9 +21,12 @@
     "next": "^15.5.7",
     "nodemailer": "^7.0.10",
     "openai": "^6.7.0",
+    "pusher": "^5.2.0",
+    "pusher-js": "^8.4.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "undici": "^7.16.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
